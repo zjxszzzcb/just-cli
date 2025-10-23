@@ -1,0 +1,22 @@
+[project]
+name = "just"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "zzzcb", email = "zjxs.zzzcb@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "dotenv>=0.9.9",
+    "rich>=14.2.0",
+    "textual>=6.4.0",
+    "typer>=0.20.0",
+]
+
+[project.scripts]
+just = "just.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
