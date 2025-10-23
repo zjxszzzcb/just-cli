@@ -13,6 +13,7 @@ wheels/
 .vscode
 .idea
 .claude
+.qoder
 
 # Environment configuration
 .env
