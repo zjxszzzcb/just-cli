@@ -39,7 +39,7 @@ def edit_file(file_path: Annotated[str, typer.Argument(help="The file to edit", 
 
     if config.JUST_EDIT_USE_TOOL == 'edit':
         os.system(f"edit {file_path}")
-    elif os.path.getsize(file_path) > 256 * 1024:
+    elif os.path.getsize(file_path) > 4096 * 1024:
         echo.yellow("File is too large for textual editor. Try to use microsoft edit instead.")
         install_microsoft_edit()
         os.system(f"edit {file_path}")
