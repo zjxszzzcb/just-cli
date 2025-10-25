@@ -3,7 +3,7 @@ import platform
 import subprocess
 
 from just import config, echo, update_env_file, capture_exception
-from .entry import install_cli
+from . import install_cli
 
 
 @install_cli.command(name="edit", help="Install Microsoft Edit.")

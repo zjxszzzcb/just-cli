@@ -2,7 +2,7 @@ import os
 import platform
 
 from just import capture_exception, echo
-from .entry import install_cli
+from . import install_cli
 
 
 @install_cli.command(name="cloudflare", help="Install Cloudflare toolkit.")
