@@ -1,7 +1,6 @@
 import inspect
 import re
 import typer
-from rich.markdown import Markdown
 from rich.console import Console
 
 

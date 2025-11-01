@@ -1,10 +1,9 @@
-# 🛠️ JUST DO IT
+# 🛠️ JUST CLI
 
-**Stop memorizing. Just doing.**
+**The simple stuff should be simple.**
 
 Sick of Googling *"how to install X on XXX"* for the 47th time? Exhausted from remembering whether it's `systemctl` or `launchctl` or `net start`? Is it `apt-get update` or `brew upgrade` or `winget update`? Should you use `ifconfig`, `ipconfig`, or `ip addr`? 
 
-just-cli was born from pure rage at context-switching between Linux, macOS, and Windows. One command to rule them all. No more "but it works on my machine" garbage. No more bookmark folders full of platform-specific cheat sheets.
 
 Want to install something? `just install xxx`. Need to edit a file? `just edit xxx`. Expose your local service to the internet? `just tunnel xxx`. **That's it.** Go grab a coffee while your colleagues are still Googling and copy-pasting commands.
 

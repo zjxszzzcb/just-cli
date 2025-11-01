@@ -53,7 +53,7 @@ def main():
     script_modules = []
     for root, dirs, files in os.walk(scripts_dir):
         for file in files:
-            if file.endswith(".py"):
+            if not file.startswith('_') and file.endswith(".py"):
                 script_modules.append(
                     "just."+
                     '.'.join(Path(root).relative_to(Path(__file__).parent).parts)+
