@@ -18,3 +18,5 @@ wheels/
 # Environment configuration
 .env
 workspace/
+extensions/
+CLAUDE.md

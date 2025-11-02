@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from sys import argv
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding

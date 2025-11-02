@@ -1,49 +1,62 @@
-import inspect
-import re
 import typer
-from rich.markdown import Markdown
+
 from rich.console import Console
 
-
-def docstring(doc: str) -> str:
-    # Remove line continuations (backslash + newline) and any following whitespace
-    doc = re.sub(r'\\\n\s*', '', doc)
-    # Normalize remaining indentation using docstring()
-    return inspect.cleandoc(doc)
+from just.utils.format_utils import docstring
 
 
-def markdown(text: str):
-    text = docstring(text)
+def to_string(*args, sep: str = ' ', end: str = '\n'):
+    return sep.join(map(str, args)) + end
+
+
+def echo(*args, sep: str = ' ', end: str = '\n'):
+    typer.echo(to_string(*args, sep=sep, end=end), nl=False)
+
+
+def red(*args, sep: str = ' ', end: str = '\n'):
+    typer.secho(to_string(*args, sep=sep, end=end), fg=typer.colors.RED, nl=False)
+
+
+def green(*args, sep: str = ' ', end: str = '\n'):
+    typer.secho(to_string(*args, sep=sep, end=end), fg=typer.colors.GREEN, nl=False)
+
+
+def yellow(*args, sep: str = ' ', end: str = '\n'):
+    typer.secho(to_string(*args, sep=sep, end=end), fg=typer.colors.YELLOW, nl=False)
+
+
+def blue(*args, sep: str = ' ', end: str = '\n'):
+    typer.secho(to_string(*args, sep=sep, end=end), fg=typer.colors.BLUE, nl=False)
+
+
+def cyan(*args, sep: str = ' ', end: str = '\n'):
+    typer.secho(to_string(*args, sep=sep, end=end), fg=typer.colors.CYAN, nl=False)
+
+
+def debug(*args, sep: str = ' ', end: str = '\n'):
+    green(f"[DEBUG] {to_string(*args, sep=sep, end=end)}", end='')
+
+
+def info(*args, sep: str = ' ', end: str = '\n'):
+    blue(f"[INFO] {to_string(*args, sep=sep, end=end)}", end='')
+
+
+def warning(*args, sep: str = ' ', end: str = '\n'):
+    yellow(f"[WARNING] {to_string(*args, sep=sep, end=end)}", end='')
+
+
+def error(*args, sep: str = ' ', end: str = '\n'):
+    red(f"[ERROR] {to_string(*args, sep=sep, end=end)}", end='')
+
+
+def markdown(*args, sep: str = ' ', end: str = '\n'):
+    text = docstring(to_string(*args, sep=sep, end=end))
     console = Console()
     # md = Markdown(text)
     # console.print(md)
-    console.print(text)
+    console.print(text, end="")
 
 
-def echo(text: str):
-    typer.echo(text)
-
-
-def red(text: str):
-    typer.secho(text, fg=typer.colors.RED)
-
-
-def green(text: str):
-    typer.secho(text, fg=typer.colors.GREEN)
-
-
-def yellow(text: str):
-    typer.secho(text, fg=typer.colors.YELLOW)
-
-
-def blue(text: str):
-    typer.secho(text, fg=typer.colors.BLUE)
-
-
-def cyan(text: str):
-    typer.secho(text, fg=typer.colors.CYAN)
-
-
-def error(text: str):
-    red(f"[ERROR] {text}")
-    
+if __name__ == "__main__":
+    for i in range(10):
+        debug(i)
