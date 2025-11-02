@@ -321,12 +321,14 @@ from . import {parent_cmd}_cli
 
 
 @{sub_cmd}_cli.command(name="{sub_cmd}")
-def main({signature}):
+def main(
+{signature}
+):
     command = r"""
     {custom_command}
     """.strip()
     {replacements}
-    subprocess.run(shlex.split(command), shell=True)
+    subprocess.run(shlex.split(command))
 '''
 
     return template.format(

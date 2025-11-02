@@ -1,4 +1,4 @@
-import re
+import shlex
 import typer
 
 from typing import List, Optional
@@ -38,7 +38,7 @@ def add_extension(
 
     # Generate the extension script
     generate_extension_script(
-        " ".join(commands),
+        shlex.join(commands),
         just_extension_commands,
     )
 

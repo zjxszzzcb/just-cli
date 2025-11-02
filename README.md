@@ -14,102 +14,75 @@ JUST CLI saves your terminal life from wasted seconds:
 
 - Install something? `just install xxx`
 - Edit files? `just edit xxx` (works just like a simple notepad)
-- Expose service? `just tunnel xxx`
+- Expose service? `just tunnel xxx` (create a cloudflared tunnel)
 
 Besides, with the powerful **Extension System**, you can instantly convert ANY complex shell command into a simple, reusable `just` command - and share it with others.
 
 **That's it.** Now you can focus on what really matters - building great stuff.
 
 
-## ✨ Features
-
-- 🚀 **Modular Architecture** - Built on Typer with dynamic command loading
-- 🎨 **Beautiful Output** - Rich library powered colorful terminal experience
-- 📝 **Built-in TUI Editor** - Textual-based file editor included
-- 🔌 **Extensible** - Add new commands effortlessly
-- ⚡ **Zero Friction** - Install with uv and go
-- 🌍 **Cross-platform** - Write once, run everywhere
-- 🧠 **Smart Extension System** - Convert any shell command into typed, reusable JUST commands with `just ext add`
-
 ## 📦 Installation
 
-### Using uv (Recommended)
-
-```bash
-uv sync
+```shell
+pip install git+https://github.com/zjxszzzcb/just-cli.git
 ```
 
-### Using pip
-
-```bash
-pip install -e .
-```
 
 ## 🚀 Quick Start
 
 After installation, you can use the `just` command:
 
 ```bash
-just --help
+just -h
 ```
 
-### Extension System Quick Start
+### Core Commands
 
-Transform any shell command into a reusable JUST command:
+JUST CLI comes with several built-in core commands for common development tasks:
 
-```bash
-# Add a new extension command
-just ext add docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' f523e75ca4ef
-> just docker ip f523e75ca4ef[container_id:str#Docker container ID or name]
-
-# Use your new command
-just docker ip my_container
-```
-
-## 📖 Available Commands
-
-### File Editing
-
-Edit any file with built-in TUI or system default editor:
-
-```bash
-just edit <file_path>
-```
-
-Quick access to configuration:
-
-```bash
-just edit config
-```
-
-### Cloudflare Tunnel
-
-Spin up a Cloudflare tunnel in seconds:
-
-```bash
-just tunnel <url>
-```
-
-### Tool Installation
-
+#### Installation Management
 Install tools without remembering platform-specific package managers:
 
 ```bash
+# Install Cloudflare tunnel client
 just install cloudflare
 ```
 
-No more `winget` vs `apt` vs `brew` confusion. Just install.
+Currently supported installations:
+- `cloudflare` - Cloudflare tunnel client (cloudflared)
+- `edit` - Microsoft Editor
 
-### Extension Management
-
-Manage your custom commands with the extension system:
+#### File Editing
+Edit any file with built-in TUI or system default editor:
 
 ```bash
-# Add a new extension command
-just ext add <shell_command>
+# Edit any file
+just edit <file_path>
+```
 
-# List all available extensions
-just ext --help
+#### File Viewing
+View files with appropriate viewers:
+
+```bash
+# View any file (opens in editor)
+just view <file_path>
+
+# View markdown files with built-in viewer
+just view README.md
+```
+
+#### Cloudflare Tunnel
+Spin up a Cloudflare tunnel in seconds:
+
+```bash
+# Expose a local service via Cloudflare tunnel
+just tunnel <url>
+```
+
+Example:
+```bash
+# Expose local server running on port 8080
+just tunnel http://localhost:8080
 ```
 
 ## 🏗️ Project Structure
@@ -119,21 +92,11 @@ just-cli/
 ├── src/just/
 │   ├── cli.py              # CLI entry point and core logic
 │   ├── commands/           # Command modules directory
-│   │   ├── edit.py         # File editing command
-│   │   ├── tunnel.py       # Cloudflare tunnel command
-│   │   ├── install/        # Installation related commands
-│   │   └── extension/      # Extension management commands
-│   │       └── add.py      # Add new extensions
 │   ├── config/             # Configuration management
 │   ├── core/               # Core functionality
 │   │   └── extension/      # Extension system core
-│   │       ├── parser.py   # Command parsing logic
-│   │       ├── generator.py# Script generation logic
-│   │       └── utils.py    # Helper functions
 │   ├── extensions/         # User-generated extension commands
 │   ├── tui/                # TUI components
-│   │   ├── editor.py       # Text editor
-│   │   └── extension.py    # Extension configuration TUI
 │   └── utils/              # Utility functions
 ├── scripts/                # System scripts
 │   └── system/
@@ -183,25 +146,59 @@ just ext add docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}
 
 Usage: `just docker ip my_container`
 
-#### HTTP API Interaction
-Transform a curl command into a typed command with options:
+#### DNSLog Service Interaction
+Transform complex curl commands into simple, reusable DNSLog commands for security testing:
+
+##### 1. Generate a new DNSLog domain
 
 ```bash
-just ext add curl --data-raw 'domain=<DOMAIN>' <URL>
-> just dnslog new <URL>[url:str] --domain <DOMAIN>[domain:str=default_domain#Subdomain for DNS logging]
+just ext add curl 'https://dnslog.org/new_gen' \
+  -H 'accept: */*' \
+  -H 'accept-language: en-US,en;q=0.9,zh;q=0.8' \
+  -H 'content-type: application/x-www-form-urlencoded' \
+  -H 'origin: https://dnslog.org' \
+  -H 'priority: u=1, i' \
+  -H 'referer: https://dnslog.org/' \
+  -H 'sec-ch-ua: "Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "Windows"' \
+  -H 'sec-fetch-dest: empty' \
+  -H 'sec-fetch-mode: cors' \
+  -H 'sec-fetch-site: same-origin' \
+  -H 'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36' \
+  --data-raw 'domain=log.dnslog.pp.ua.'
+> just dnslog new --domain log.dnslog.pp.ua[domain:str=log.dnslog.pp.ua#DNSLog domain to generate]
 ```
 
-Usage: `just dnslog new https://api.dnslog.com --domain mysubdomain`
+Usage: `just dnslog new --domain mydomain.dnslog.org`
 
-#### Command with Numeric Parameters
-Create a compression command with typed parameters:
+
+##### 2. Check DNSLog records
 
 ```bash
-just ext add gzip -<LEVEL> <FILE>
-> just compress <FILE>[file_path:str] -l LEVEL[int=6#Compression level 1-9]
+just ext add curl 'https://dnslog.org/rwvkku2gl89l' \
+  -H 'accept: */*' \
+  -H 'accept-language: en-US,en;q=0.9,zh;q=0.8' \
+  -H 'content-type: application/x-www-form-urlencoded' \
+  -H 'origin: https://dnslog.org' \
+  -H 'priority: u=1, i' \
+  -H 'referer: https://dnslog.org/' \
+  -H 'sec-ch-ua: "Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "Windows"' \
+  -H 'sec-fetch-dest: empty' \
+  -H 'sec-fetch-mode: cors' \
+  -H 'sec-fetch-site: same-origin' \
+  -H 'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36' \
+  --data-raw 'domain=log.dnslog.pp.ua.'
+> just dnslog check a9kkdqbwbnzp[identifier:str#subdomain prefix] --domain log.dnslog.pp.ua[domain:str=log.dnslog.pp.ua#DNSLog domain to check]
 ```
 
-Usage: `just compress document.txt -l 9`
+Usage: `just dnslog check abc123 --domain mydomain.dnslog.org`
+
+This registers `check` as a subcommand of `dnslog`. The `check` command accepts a positional parameter `identifier` of type `str` (described as "subdomain prefix" in help text) and an option parameter `domain` of type `str` with a default value of `log.dnslog.pp.ua`.
+
+This creates a powerful penetration testing toolkit that can quickly interact with DNSLog services to monitor DNS queries during security testing, eliminating the need to remember complex curl commands with numerous headers.
 
 ### How It Works
 
@@ -211,86 +208,11 @@ Usage: `just compress document.txt -l 9`
 4. **Integration**: Seamlessly integrates the new command into the existing command hierarchy
 5. **Execution**: When called, the command substitutes parameters and executes the original shell command
 
-### Benefits
-
-- **Type Safety**: All parameters are strongly typed with automatic conversion
-- **Help Integration**: Generated commands automatically integrate with `just --help`
-- **Default Values**: Support for default parameter values
-- **Cross-Platform**: Extensions work on all supported platforms
-- **Reusable**: Once created, extensions can be used just like built-in commands
-- **No Coding Required**: Create powerful commands without writing any Python code
-
-#### Simple Command
-
-1. Create a Python file in `src/just/commands/`
-2. Register your command with the `@just_cli.command()` decorator
-3. Done. The CLI auto-discovers and loads it.
-
-Example:
-
-```python
-from just import just_cli, capture_exception, echo
-
-@just_cli.command(name="mycommand", help="My custom command.")
-@capture_exception
-def my_command(arg: str):
-    echo.success(f"Running with: {arg}")
-```
-
-#### Multiple Subcommands
-
-For commands with multiple subcommands (like `just install cloudflare`), follow this pattern:
-
-1. Create a directory under `src/just/commands/` (e.g., `mygroup/`)
-2. Create `__init__.py` to define the subcommand group:
-
-```python
-from just import create_typer_app, just_cli
-
-mygroup_cli = create_typer_app(name="mygroup", help="My command group.")
-just_cli.add_typer(mygroup_cli)
-```
-
-3. Create individual command files (e.g., `foo.py`):
-
-```python
-from just import capture_exception, echo
-from . import mygroup_cli
-
-@mygroup_cli.command(name="foo", help="Foo subcommand.")
-@capture_exception
-def foo_command():
-    echo.success("Running foo!")
-```
-
-4. Usage: `just mygroup foo`
-
-### Adding New Extensions
-
-With the Extension System, you don't need to write Python code to add new commands. Simply use:
-
-```bash
-just ext add <your_shell_command>
-```
-
-And follow the interactive prompts to define your command structure. The system will automatically generate the Python code and integrate it into the CLI.
-
-For advanced users who want to create extensions programmatically, you can use the extension generation APIs in `src/just/core/extension/`.
-
-
-### Philosophy
-
-The goal is simple: **abstract away platform differences**. Whether you're installing a package, deploying a service, or running a script, the command should be the same. `just install`, `just deploy`, `just run`. That's it.
-
-### Environment Configuration
+## Environment Configuration
 
 Uses `.env` for configuration management:
 
 - `JUST_EDIT_USE_TOOL`: Editor preference (`textual` or `edit`)
-
-## 📋 Dependencies
-
-- Python >= 3.11
 
 ## 📝 License
 
@@ -308,5 +230,3 @@ Contributions are welcome! Whether it's a new command, bug fix, or platform supp
 **Principle**: Keep commands simple and cross-platform. If a command only works on one OS, handle it gracefully with clear error messages.
 
 ---
-
-**Made with frustration and coffee ☕** by developers who refuse to memorize platform-specific commands anymore.
