@@ -75,10 +75,33 @@ def parse_just_commands(just_commands: List[str]):
         except IndexError:
             annotation = ""
 
-        identifier = command.replace(f'[{annotation}]', '')
+        # For options, the identifier should be the placeholder in the command template
+        # For arguments, it's the placeholder
+        if option_flag and not annotation:
+            # This is a flag option, identifier is the flag itself
+            identifier = option_flag
+        else:
+            # For annotated parameters, the identifier is the part before the annotation
+            # Extract the identifier (placeholder in the original command)
+            # For annotated parameters like "f523e75ca4ef[container_id:str#help]",
+            # the identifier is "f523e75ca4ef"
+            identifier = command.split('[')[0]
 
         if option_flag and not annotation:
-            annotation = option_flag
+            # For flags like -v[verbose:bool#help], we need to extract the annotation correctly
+            flag_start = command.find('[')
+            flag_end = command.find(']')
+            if flag_start != -1 and flag_end != -1:
+                flag_annotation = command[flag_start+1:flag_end]
+                if flag_annotation:
+                    annotation = flag_annotation
+                    identifier = command[:flag_start]  # The flag itself is the identifier
+                else:
+                    annotation = option_flag
+                    identifier = option_flag
+            else:
+                annotation = option_flag
+                identifier = option_flag
 
         if not annotation:
             commands.append(command)
@@ -99,6 +122,21 @@ def parse_just_commands(just_commands: List[str]):
         else:
             variable_name = annotation
             variable_type = 'str'
+
+        # Convert default value to appropriate type
+        if default_value is not None:
+            if variable_type == 'int':
+                try:
+                    default_value = int(default_value)
+                except ValueError:
+                    pass  # Keep as string if conversion fails
+            elif variable_type == 'float':
+                try:
+                    default_value = float(default_value)
+                except ValueError:
+                    pass  # Keep as string if conversion fails
+            elif variable_type == 'bool':
+                default_value = default_value.lower() in ('true', '1', 'yes', 'on')
 
         arg = Argument(
             repl_identifier=identifier,
@@ -175,23 +213,122 @@ def create_typer_script(
     just_sub_command = just_commands[-1]
 
     arguments_declarations = ['\n']
+    all_params = []
+
+    # Track variable names to avoid duplicates
+    used_names = set()
+
+    # Add arguments
     for arg in arguments:
-        default_assignment = f" = {arg.default_value}" if arg.default_value else ""
-        arguments_declarations.append(
-            f"    {arg.name}: Annotated[{arg.type.__name__}, typer.Argument(\n"
+        # Ensure unique variable names
+        var_name = arg.name
+        counter = 1
+        while var_name in used_names:
+            var_name = f"{arg.name}_{counter}"
+            counter += 1
+        used_names.add(var_name)
+
+        default_assignment = ""
+        if arg.default_value is not None:
+            # Handle string default values properly
+            if isinstance(arg.default_value, str):
+                default_assignment = f" = '{arg.default_value}'"
+            else:
+                default_assignment = f" = {arg.default_value}"
+        all_params.append(
+            f"    {var_name}: Annotated[{arg.type.__name__}, typer.Argument(\n"
             f"        help={repr(arg.help)},\n"
             f"        show_default=False\n"
             f"    )]{default_assignment}"
         )
-    # TODO: options
+
+    # Add options processing
+    for flag, opt in options.items():
+        # Ensure unique variable names
+        var_name = opt.name
+        counter = 1
+        while var_name in used_names:
+            var_name = f"{opt.name}_{counter}"
+            counter += 1
+        used_names.add(var_name)
+
+        default_assignment = ""
+        if opt.default_value is not None:
+            # Handle string default values properly
+            if isinstance(opt.default_value, str):
+                default_assignment = f" = '{opt.default_value}'"
+            else:
+                default_assignment = f" = {opt.default_value}"
+        # Determine if it's a boolean flag option
+        elif opt.type.__name__ == 'bool':
+            # Boolean flag without explicit default - treat as False default
+            default_assignment = " = False"
+
+        all_params.append(
+            f"    {var_name}: Annotated[{opt.type.__name__}, typer.Option(\n"
+            f"        {repr(f'--{flag}')},\n"
+            f"        help={repr(opt.help)},\n"
+            f"        show_default=False\n"
+            f"    )]{default_assignment}"
+        )
+
+    # Join all parameters with commas
+    for i, param in enumerate(all_params):
+        if i < len(all_params) - 1:
+            arguments_declarations.append(param + ",\n")
+        else:
+            arguments_declarations.append(param + "\n")
+
     arguments_declarations.append('\n')
 
     command_replacements = []
+    # Create mapping of original names to new names
+    name_mapping = {}
+
+    # Map arguments
+    arg_counter = 1
     for arg in arguments:
+        var_name = arg.name
+        while var_name in name_mapping.values():
+            var_name = f"{arg.name}_{arg_counter}"
+            arg_counter += 1
+        name_mapping[arg.name] = var_name
+
+    # Map options
+    opt_counter = 1
+    for flag, opt in options.items():
+        var_name = opt.name
+        while var_name in name_mapping.values():
+            var_name = f"{opt.name}_{opt_counter}"
+            opt_counter += 1
+        name_mapping[opt.name] = var_name
+
+    # Generate replacements for arguments
+    for arg in arguments:
+        var_name = name_mapping[arg.name]
         command_replacements.append(
-            f"    command = command.replace({repr(arg.repl_identifier)}, {arg.name})"
+            f"    command = command.replace({repr(arg.repl_identifier)}, str({var_name}))"
         )
-    command_replacements[0] = command_replacements[0].lstrip()
+
+    # Generate replacements for options
+    for flag, opt in options.items():
+        var_name = name_mapping[opt.name]
+        # For boolean flags, only add the flag if True
+        if opt.type.__name__ == 'bool':
+            command_replacements.append(
+                f"    if {var_name}:"
+            )
+            # For boolean flags, we typically just want to include the flag itself, not its value
+            command_replacements.append(
+                f"        command = command.replace({repr(opt.repl_identifier)}, '{opt.repl_identifier}')"
+            )
+        else:
+            command_replacements.append(
+                f"    command = command.replace({repr(opt.repl_identifier)}, str({var_name}))"
+            )
+
+    if command_replacements:
+        command_replacements[0] = command_replacements[0].lstrip()
 
     with open(final_expect_script_path, 'w', encoding='utf-8') as f:
         f.write(

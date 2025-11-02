@@ -1,7 +1,7 @@
 from textual.app import App
 from textual.binding import Binding
-from textual.containers import Container, Vertical
-from textual.widgets import Input, Header, Footer, Label
+from textual.containers import Container, Vertical, Horizontal
+from textual.widgets import Input, Header, Footer, Label, TextArea
 
 from just.tui.editor import EditArea
 
@@ -20,14 +20,18 @@ class ExtensionTUI(App):
     }
 
     #editor-container {
-        height: 70%;
+        height: 60%;
         border: solid green;
     }
 
     #input-container {
-        height: 20%;
+        height: 30%;
         border: solid blue;
         layout: vertical;
+    }
+
+    #main-container {
+        height: 90%;
     }
 
     EditArea {
@@ -38,29 +42,38 @@ class ExtensionTUI(App):
         width: 100%;
         margin: 1 0;
     }
+
+    Label {
+        margin: 1 0 0 0;
+        text-style: bold;
+    }
     """
 
     def __init__(self):
         super().__init__()
         self.editor = EditArea(id="command-editor")
-        self.input = Input(placeholder="Enter command declaration (e.g., just docker ip <container_id>[id:str])",
-                           id="command-input")
+        self.template_input = Input(placeholder="Enter command template (e.g., curl --data-raw 'domain=<DOMAIN>' <URL>)",
+                                   id="template-input")
+        self.declaration_input = Input(placeholder="Enter command declaration (e.g., just dnslog new <URL>[url:str] --domain <DOMAIN>[domain:str=default#help])",
+                                      id="declaration-input")
 
     def compose(self):
         """Create the UI layout"""
         yield Header()
         yield Container(
             Vertical(
-                Label("Command Template Editor:"),
+                Label("Command Template:"),
                 self.editor,
                 id="editor-container"
             ),
             Vertical(
+                Label("Command Template (Text):"),
+                self.template_input,
                 Label("Command Declaration:"),
-                self.input,
+                self.declaration_input,
                 id="input-container"
             ),
-            id="button-container"
+            id="main-container"
         )
         yield Footer()
 
@@ -74,8 +87,9 @@ class ExtensionTUI(App):
 
     def save_command(self) -> None:
         """Save the configured command"""
-        command_template = self.editor.text.strip()
-        command_declaration = self.input.value.strip()
+        # Use editor text if available, otherwise use template input
+        command_template = self.editor.text.strip() or self.template_input.value.strip()
+        command_declaration = self.declaration_input.value.strip()
 
         if not command_template:
             self.bell()
@@ -85,7 +99,20 @@ class ExtensionTUI(App):
         print(f"Command Template: {command_template}")
         print(f"Command Declaration: {command_declaration}")
 
-        # Here we would save the command configuration
-        # For now, just show a message
+        # Import and use the extension creation function
+        try:
+            from just.utils.ext_utils import create_typer_script
+            import shlex
+
+            # Parse the declaration into a list of arguments
+            just_commands = shlex.split(command_declaration)
+
+            # Create the extension
+            result = create_typer_script(command_template, just_commands)
+            print(f"Extension created successfully: {result}")
+        except Exception as e:
+            print(f"Error creating extension: {e}")
+
+        # Show success message and exit
         self.bell()
         self.exit()
