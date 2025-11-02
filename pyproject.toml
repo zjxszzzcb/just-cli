@@ -16,7 +16,6 @@ dependencies = [
 
 [project.scripts]
 just = "just.cli:main"
-just-ext = "just.core.extension:run_just_ext"
 
 [build-system]
 requires = ["hatchling"]
