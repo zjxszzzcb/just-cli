@@ -5,7 +5,7 @@ from pathlib import Path
 from typing_extensions import Annotated
 
 from just import just_cli, config, echo, update_env_file, capture_exception
-from just.core.install.edit import install_microsoft_edit
+from just.commands.install.edit import install_microsoft_edit
 from just.tui import FileEditor
 
 

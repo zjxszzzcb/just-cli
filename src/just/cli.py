@@ -69,7 +69,7 @@ def main():
         traverse_script_dir(
             directory=os.path.join(
                 os.path.dirname(__file__),
-                "core"
+                "commands"
             )
         )
     )

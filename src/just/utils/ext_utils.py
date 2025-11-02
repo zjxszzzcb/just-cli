@@ -41,9 +41,9 @@ class Argument:
 
 
 def search_exist_script(just_commands: List[str]) -> Tuple[bool, str]:
-    commands_dir = Path(__file__).parent.parent / 'core'
+    commands_dir = Path(__file__).parent.parent / 'commands'
     extensions_dir = Path(__file__).parent.parent / 'extensions'
-    # search in core commands
+    # search in commands commands
     if just_commands[0] == 'just':
         just_commands.pop(0)
     if not just_commands:
