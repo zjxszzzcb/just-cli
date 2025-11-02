@@ -1,6 +1,6 @@
 # 🛠️ JUST CLI
 
-**The simple stuff should be simple.**
+### The simple stuff should be simple.
 
 Sick of Googling *"how to install X on XXX"* for the 47th time, only to end up copying and pasting similar commands from various official docs?
 
@@ -8,7 +8,7 @@ Tired of copy-pasting giant commands and tapping arrow keys forever just to chan
 
 Just want an all-in-one toolkit for everyday simple tasks, instead of endlessly searching and testing Deep Research results one by one?
 
-**Stop wasting life on terminal chores !!!**
+### Stop wasting life on terminal chores!
 
 JUST CLI saves your terminal life from wasted seconds:
 
