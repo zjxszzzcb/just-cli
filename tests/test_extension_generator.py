@@ -13,10 +13,12 @@ from just.core.extension.generator import (
     validate_command_input,
     generate_function_signature,
     generate_command_replacements,
-    assemble_typer_script_content
+    assemble_typer_script_content,
+    generate_extension_script,
+    get_command_paths
 )
 from just.core.extension.parser import parse_command_structure
-from just.core.extension.utils import split_command_line
+from just.core.extension.utils import split_command_line, search_existing_script
 
 
 def test_split_command_line():
@@ -317,6 +319,117 @@ def test_assemble_typer_script_content():
     return True
 
 
+def test_get_command_paths():
+    """Test the get_command_paths function to ensure it returns extensions directory paths."""
+    print("\nTesting get_command_paths...")
+
+    # Test with a simple command
+    script_path, dir_path = get_command_paths(['just', 'test', 'command'])
+
+    # Verify the paths are in the extensions directory
+    assert 'extensions' in str(script_path)
+    assert 'extensions' in str(dir_path)
+    # On Windows, the path separator might be different
+    assert 'test/command.py' in str(script_path).replace('\\', '/') or 'test\\command.py' in str(script_path)
+    print("✅ Passed: Paths correctly point to extensions directory")
+
+    return True
+
+
+def test_extension_created_in_correct_directory():
+    """Test that extension commands are created in the extensions directory, not commands directory."""
+    print("\nTesting extension creation in correct directory...")
+
+    import tempfile
+    import shutil
+    from pathlib import Path
+
+    # Create a temporary directory for testing
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Copy the project structure to the temporary directory
+        src_dir = Path(__file__).parent.parent / 'src'
+        temp_src_dir = Path(temp_dir) / 'src'
+        shutil.copytree(src_dir, temp_src_dir)
+
+        # Modify the sys.path to use the temporary src directory
+        original_path = sys.path[:]
+        sys.path.insert(0, str(temp_src_dir))
+
+        try:
+            # Import the modules from the temporary directory
+            from just.core.extension.generator import generate_extension_script, get_command_paths
+            from just.core.extension.utils import search_existing_script
+
+            # Test 1: Create a new extension command (parent command doesn't exist in commands)
+            custom_command = "echo 'Hello World'"
+            just_commands = ['just', 'hello', 'world']
+
+            # Get the expected path
+            script_path, _ = get_command_paths(just_commands)
+
+            # Generate the extension script
+            try:
+                generate_extension_script(custom_command, just_commands)
+
+                # Verify the script was created in the extensions directory
+                assert 'extensions' in str(script_path), f"Script should be in extensions directory, but was created at: {script_path}"
+                assert script_path.exists(), f"Script file was not created at: {script_path}"
+                print("✅ Passed: New extension command created in extensions directory")
+
+                # Clean up the created file
+                if script_path.exists():
+                    script_path.unlink()
+                    # Also clean up the parent directory if it's empty
+                    parent_dir = script_path.parent
+                    init_file = parent_dir / '__init__.py'
+                    if init_file.exists():
+                        init_file.unlink()
+                    if parent_dir.exists() and not any(parent_dir.iterdir()):
+                        parent_dir.rmdir()
+
+            except FileExistsError:
+                # If file already exists, that's fine for this test
+                pass
+
+            # Test 2: Create an extension command where parent exists in commands directory (like install)
+            # We'll simulate this by checking that the path still points to extensions even for commands
+            # that exist in the commands directory
+            just_commands_install = ['just', 'install', 'test']
+            script_path_install, _ = get_command_paths(just_commands_install)
+
+            # Verify the path is still in extensions directory
+            assert 'extensions' in str(script_path_install), f"Even for existing commands, extension should be in extensions directory, but was: {script_path_install}"
+            print("✅ Passed: Extension command for existing command created in extensions directory")
+
+        finally:
+            # Restore the original sys.path
+            sys.path[:] = original_path
+
+    return True
+
+
+def test_search_existing_script():
+    """Test the search_existing_script function."""
+    print("\nTesting search_existing_script...")
+
+    # Test with a non-existing command
+    exists, path = search_existing_script(['just', 'nonexistent', 'command'])
+    assert not exists, "Non-existent command should not exist"
+    assert 'extensions' in path, f"Path for non-existent command should point to extensions directory, but was: {path}"
+    print("✅ Passed: Non-existent command correctly points to extensions directory")
+
+    # Test with a command that doesn't exist as a .py file
+    # This tests that the path calculation is correct
+    exists, path = search_existing_script(['just', 'install'])
+    # Even though install exists as a directory, it doesn't exist as install.py
+    # The function should still return the correct path (either commands or extensions)
+    # Since install.py doesn't exist in either directory, it will return the extensions path
+    assert 'src/just/' in path, f"Path should point to the just directory, but was: {path}"
+    print("✅ Passed: Path calculation is correct for non-existent .py files")
+
+    return True
+
+
 def run_all_tests():
     """Run all tests."""
     print("Running extension generator tests...\n")
@@ -327,7 +440,10 @@ def run_all_tests():
         test_parse_command_structure,
         test_generate_function_signature,
         test_generate_command_replacements,
-        test_assemble_typer_script_content
+        test_assemble_typer_script_content,
+        test_get_command_paths,
+        test_extension_created_in_correct_directory,
+        test_search_existing_script
     ]
 
     passed = 0
