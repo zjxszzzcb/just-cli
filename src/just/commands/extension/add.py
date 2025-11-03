@@ -13,8 +13,15 @@ from . import ext_cli
 
 @ext_cli.command(name="add", context_settings={"ignore_unknown_options": True})
 def add_extension(
-    commands: Optional[List[str]] = typer.Argument(None, help="The command to register as a just extension"),
-    tui: bool = typer.Option(False, "--tui", help="Launch TUI to configure the command")
+    commands: Optional[List[str]] = typer.Argument(
+        None,
+        help="The command to register as a just extension"
+    ),
+    tui: bool = typer.Option(
+        False,
+        "--tui",
+        help="Launch TUI to configure the command"
+    )
 ):
     """
     Parse and register a command as a just extension.

@@ -14,7 +14,6 @@ from just.core.extension.generator import (
     generate_function_signature,
     generate_command_replacements,
     assemble_typer_script_content,
-    generate_extension_script,
     get_command_paths
 )
 from just.core.extension.parser import parse_command_structure

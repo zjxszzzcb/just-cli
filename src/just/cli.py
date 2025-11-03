@@ -34,7 +34,7 @@ def load_env():
 
 
 def update_env_file(key: str, value: str):
-    echo.echo("Update", str(Path(__file__).parent / ".env"), f"{key}={value}")
+    echo.info("Update Env:", f"{key}={value}")
     set_key(str(Path(__file__).parent / ".env"), key, value)
 
 
