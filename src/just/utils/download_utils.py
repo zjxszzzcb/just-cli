@@ -1,0 +1,345 @@
+import httpx
+import os
+from typing import Dict, Optional
+
+from just.utils.progress import progress_bar
+import just.utils.echo_utils as echo
+
+
+def download_with_resume(
+    url: str,
+    headers: Dict[str, str],
+    output_file: str,
+    chunk_size: int = 65536,
+    verbose: bool = False
+) -> bool:
+    """
+    Download file with resume support and unified progress bar.
+
+    Args:
+        url: URL to download
+        headers: Custom headers
+        output_file: Output file path
+        chunk_size: Chunk size for downloading
+        verbose: Enable verbose logging
+    """
+    if verbose:
+        echo.info(f"Starting download: {url}")
+        echo.info(f"Output file: {output_file}")
+        echo.info(f"Chunk size: {chunk_size}")
+
+    # Use a temporary file name during download to avoid conflicts
+    temp_file = output_file + ".tmp"
+
+    # Check if file already exists for resuming
+    if os.path.exists(output_file):
+        # Check if file is already completely downloaded
+        existing_file_size = os.path.getsize(output_file)
+        if verbose:
+            echo.info(f"File exists with size: {existing_file_size} bytes")
+
+        # Make a HEAD request to get the total file size
+        try:
+            if verbose:
+                echo.info(f"Making HEAD request to check total file size")
+            head_response = httpx.head(url, headers=headers, follow_redirects=True, timeout=30.0)
+            total_size = int(head_response.headers.get('content-length', 0))
+            if verbose:
+                echo.info(f"HEAD response status: {head_response.status_code}")
+                echo.info(f"HEAD response headers: {dict(head_response.headers)}")
+                echo.info(f"Total size from HEAD: {total_size}")
+
+            # If HEAD request doesn't return content-length, try a GET request with range=0-0
+            if total_size == 0:
+                if verbose:
+                    echo.info(f"HEAD request didn't return content-length, trying range request")
+                range_response = httpx.get(
+                    url,
+                    headers={**headers, 'Range': 'bytes=0-0'},
+                    follow_redirects=True,
+                    timeout=30.0
+                )
+                if 'content-range' in range_response.headers:
+                    content_range = range_response.headers.get('content-range', '')
+                    if content_range.startswith('bytes '):
+                        range_info = content_range[6:]  # Remove 'bytes ' prefix
+                        if '/' in range_info:
+                            _, total_size_str = range_info.split('/')
+                            if total_size_str.isdigit():
+                                total_size = int(total_size_str)
+                                if verbose:
+                                    echo.info(f"Total size from range request: {total_size}")
+
+            if existing_file_size == total_size and total_size > 0:
+                echo.info(f"File already exists and is complete: {output_file}")
+                return True
+            elif verbose:
+                echo.info(f"File size mismatch - existing: {existing_file_size}, total: {total_size}")
+        except Exception as e:
+            if verbose:
+                echo.info(f"HEAD request failed: {e}")
+
+        # File exists but is not complete, resume download
+        first_byte = existing_file_size
+        mode = "ab"
+        if verbose:
+            echo.info(
+                f"Found existing file: {first_byte} bytes, "
+                f"mode: {mode}"
+            )
+    elif os.path.exists(temp_file):
+        # If temporary file exists, use it for resuming
+        first_byte = os.path.getsize(temp_file)
+        mode = "ab"
+        if verbose:
+            echo.info(
+                f"Found temporary file: {first_byte} bytes, "
+                f"mode: {mode}"
+            )
+    else:
+        # Fresh download
+        first_byte = 0
+        mode = "wb"
+
+    # Prepare headers for initial request
+    request_headers = headers.copy()
+    # Add Range header if resuming
+    if first_byte > 0:
+        request_headers['Range'] = f'bytes={first_byte}-'
+        if verbose:
+            echo.info(
+                f"Added Range header: {request_headers['Range']}"
+            )
+
+    try:
+        if verbose:
+            echo.info(
+                f"Making initial request with headers: "
+                f"{request_headers}"
+            )
+
+        with httpx.stream("GET", url, headers=request_headers, follow_redirects=True, timeout=30.0) as response:
+            if verbose:
+                echo.info(
+                    f"Initial response status: {response.status_code}"
+                )
+                echo.info(
+                    f"Response headers: {dict(response.headers)}"
+                )
+
+            response.raise_for_status()
+
+            # Check if server supports range requests
+            if first_byte > 0 and response.status_code != 206:
+                return _handle_server_no_range_support(
+                    url, headers, output_file, chunk_size,
+                    verbose, response
+                )
+
+            # Server supports range requests or it's a fresh download
+            total_size = _get_total_size(response, first_byte, verbose)
+
+            # Validate total size
+            if total_size is None:
+                echo.error(f"HTTP {response.status_code}: {response.text}")
+                return False
+
+            # Download file with resume support to temporary file
+            success = _download_stream(response, temp_file, total_size, mode, first_byte, chunk_size, verbose)
+
+            # If download is successful, rename temporary file to final name
+            if success:
+                if mode == "ab" and first_byte > 0:
+                    # For resumed downloads, append the new content to existing file
+                    if os.path.exists(output_file):
+                        # Append temp file content to existing file
+                        with open(temp_file, 'rb') as src, open(output_file, 'ab') as dst:
+                            while True:
+                                chunk = src.read(chunk_size)
+                                if not chunk:
+                                    break
+                                dst.write(chunk)
+                        # Remove temporary file
+                        os.remove(temp_file)
+                    else:
+                        # Rename temp file to final name
+                        os.rename(temp_file, output_file)
+                else:
+                    # For fresh downloads, simply rename temp file to final name
+                    os.rename(temp_file, output_file)
+                echo.info(f"Download completed and renamed to: {output_file}")
+
+            return success
+
+    except Exception as e:
+        echo.error(f"Download failed: {str(e)}")
+        # Clean up temporary file on failure
+        if os.path.exists(temp_file):
+            try:
+                os.remove(temp_file)
+                if verbose:
+                    echo.info(f"Cleaned up temporary file: {temp_file}")
+            except Exception as cleanup_error:
+                if verbose:
+                    echo.info(f"Failed to clean up temporary file: {cleanup_error}")
+        return False
+
+
+def _handle_server_no_range_support(
+    url: str,
+    headers: Dict[str, str],
+    output_file: str,
+    chunk_size: int,
+    verbose: bool,
+    response: httpx.Response
+) -> bool:
+    """Handle case where server doesn't support range requests."""
+    if verbose:
+        echo.info(
+            f"Server doesn't support range requests "
+            f"(status: {response.status_code}), restarting download"
+        )
+
+    # Server doesn't support range requests, start from beginning
+    first_byte = 0
+    mode = "wb"
+
+    # Close the current stream and make a new request
+    response.close()
+
+    if verbose:
+        echo.info(f"Making fresh request without Range header")
+
+    # Make a new request without the Range header
+    with httpx.stream("GET", url, headers=headers, follow_redirects=True, timeout=30.0) as new_response:
+        if verbose:
+            echo.info(f"Fresh response status: {new_response.status_code}")
+
+        new_response.raise_for_status()
+
+        # Get total file size for fresh download
+        total_size = int(new_response.headers.get('content-length', 0))
+        if verbose:
+            echo.info(f"Fresh download total size: {total_size}")
+
+        # Download file with fresh start to temporary file
+        temp_file = output_file + ".tmp"
+        success = _download_stream(
+            new_response,
+            temp_file,
+            total_size,
+            mode,
+            first_byte,
+            chunk_size,
+            verbose
+        )
+
+        # If download is successful, rename temporary file to final name
+        if success:
+            # Remove existing file if it exists
+            if os.path.exists(output_file):
+                os.remove(output_file)
+            # Rename temp file to final name
+            os.rename(temp_file, output_file)
+            echo.info(f"Download completed and renamed to: {output_file}")
+
+        return success
+
+
+def _get_total_size(response: httpx.Response, first_byte: int, verbose: bool) -> Optional[int]:
+    """Get total file size from response."""
+    total_size = first_byte
+
+    if response.status_code == 206:
+        # Partial content
+        content_range = response.headers.get('content-range', '')
+        if content_range.startswith('bytes '):
+            range_info = content_range[6:]  # Remove 'bytes ' prefix
+            if '/' in range_info:
+                _, total_size_str = range_info.split('/')
+                if total_size_str.isdigit():
+                    total_size = int(total_size_str)
+        if verbose:
+            echo.info(
+                f"Partial content (206), content-range: "
+                f"{content_range}, total size: {total_size}"
+            )
+    elif response.status_code == 200:
+        # Full content
+        total_size = int(response.headers.get('content-length', 0))
+        if verbose:
+            echo.info(
+                f"Full content (200), total size: {total_size}"
+            )
+    else:
+        return None
+
+    return total_size
+
+
+def _download_stream(
+    response: httpx.Response,
+    output_file: str,
+    total_size: int,
+    mode: str,
+    first_byte: int,
+    chunk_size: int = 65536,
+    verbose: bool = False
+) -> bool:
+    """
+    Helper function to download file stream.
+
+    Args:
+        response: HTTP response stream
+        output_file: Output file path (can be temporary file)
+        total_size: Total file size
+        mode: File open mode ("wb" or "ab")
+        first_byte: Starting byte position
+        chunk_size: Chunk size for downloading
+        verbose: Enable verbose logging
+    """
+    if verbose:
+        echo.info(
+            f"Starting _download_stream: total_size={total_size}, "
+            f"mode={mode}, first_byte={first_byte}"
+        )
+
+    # Download file with unified progress bar
+    bytes_written = 0
+
+    if verbose:
+        echo.info(
+            f"Opening file {output_file} with mode {mode}"
+        )
+
+    with open(output_file, mode) as f:
+        with progress_bar(total=total_size, desc="Downloading", unit="b") as pbar:
+            # Update progress for already downloaded bytes
+            pbar.n = first_byte
+            pbar.refresh()  # Force refresh to show correct initial position
+            if verbose:
+                echo.info(
+                    f"Progress bar initialized with n={first_byte}"
+                )
+
+            for i, chunk in enumerate(response.iter_bytes(chunk_size=chunk_size)):
+                if chunk:
+                    f.write(chunk)
+                    bytes_written += len(chunk)
+                    pbar.update(len(chunk))
+
+                    if verbose and (i % 10 == 0 or len(chunk) < chunk_size):
+                        # Log every 10 chunks or last chunk
+                        echo.info(
+                            f"Chunk {i}: wrote {len(chunk)} bytes, "
+                            f"total written: {bytes_written}"
+                        )
+
+    if verbose:
+        echo.info(
+            f"Download completed: {output_file}, "
+            f"total bytes written: {bytes_written}"
+        )
+
+    echo.info(f"Download completed: {output_file}")
+    return True
