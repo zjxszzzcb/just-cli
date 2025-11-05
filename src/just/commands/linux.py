@@ -5,6 +5,7 @@ from pathlib import Path
 from typing_extensions import Annotated
 
 from just import just_cli, capture_exception, echo
+from just.utils.file_utils import read_file_text
 
 
 def confirm_action(message: str) -> bool:
@@ -20,7 +21,7 @@ def cat_file(
         help="Files to display",
         show_default=False
     )],
-    n: Annotated[bool, typer.Option(
+    with_line_numbers: Annotated[bool, typer.Option(
         "--number", "-n",
         help="Number all output lines"
     )] = False
@@ -29,18 +30,12 @@ def cat_file(
     Concatenate and print files.
     """
     for file_path in file_paths:
+        if os.path.isdir(file_path):
+            echo.red(f"cat: {file_path} is a directory")
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                for i, line in enumerate(lines, 1):
-                    if n:
-                        echo.echo(f"{i:>6}  {line}", end='')
-                    else:
-                        echo.echo(line, end='')
+            echo.echo(read_file_text(file_path, with_line_numbers=with_line_numbers))
         except FileNotFoundError:
-            echo.error(f"cat: {file_path}: No such file or directory")
-        except Exception as e:
-            echo.error(f"cat: {file_path}: {str(e)}")
+            echo.red(f"cat: The file {file_path} does not exist")
 
 
 @just_cli.command(name="ls")
@@ -50,11 +45,11 @@ def list_files(
         help="Directory to list",
         show_default=False
     )] = ".",
-    l: Annotated[bool, typer.Option(
-        "--long-format", "-l",
+    long_format: Annotated[bool, typer.Option(
+        "-l",
         help="Use a long listing format"
     )] = False,
-    a: Annotated[bool, typer.Option(
+    all_format: Annotated[bool, typer.Option(
         "--all", "-a",
         help="Do not ignore entries starting with ."
     )] = False
@@ -62,36 +57,32 @@ def list_files(
     """
     List directory contents.
     """
-    try:
-        p = Path(path)
-        if not p.exists():
-            echo.error(f"ls: cannot access '{path}': No such file or directory")
-            return
+    p = Path(path)
+    if not p.exists():
+        echo.red(f"ls: cannot access '{path}': No such file or directory")
+        return
 
-        if not p.is_dir():
-            if l:
-                stat = p.stat()
-                echo.echo(f"-rw-r--r-- 1 user group {stat.st_size:>8} {p.name}")
-            else:
-                echo.echo(p.name)
-            return
-
-        entries = list(p.iterdir())
-        if not a:
-            entries = [entry for entry in entries if not entry.name.startswith('.')]
-
-        if l:
-            for entry in entries:
-                stat = entry.stat()
-                permissions = "drwxr-xr-x" if entry.is_dir() else "-rw-r--r--"
-                size = stat.st_size
-                echo.echo(f"{permissions} 1 user group {size:>8} {entry.name}")
+    if not p.is_dir():
+        if long_format:
+            stat = p.stat()
+            echo.echo(f"-rw-r--r-- 1 user group {stat.st_size:>8} {p.name}")
         else:
-            for entry in entries:
-                echo.echo(entry.name)
+            echo.echo(p.name)
+        return
 
-    except Exception as e:
-        echo.error(f"ls: {str(e)}")
+    entries = list(p.iterdir())
+    if not all_format:
+        entries = [entry for entry in entries if not entry.name.startswith('.')]
+
+    if long_format:
+        for entry in entries:
+            stat = entry.stat()
+            permissions = "drwxr-xr-x" if entry.is_dir() else "-rw-r--r--"
+            size = stat.st_size
+            echo.echo(f"{permissions} 1 user group {size:>8} {entry.name}")
+    else:
+        for entry in entries:
+            echo.echo(entry.name)
 
 
 @just_cli.command(name="mkdir")
@@ -101,7 +92,7 @@ def make_directory(
         help="Directories to create",
         show_default=False
     )],
-    p: Annotated[bool, typer.Option(
+    make_parents: Annotated[bool, typer.Option(
         "--parents", "-p",
         help="No error if existing, make parent directories as needed"
     )] = False
@@ -110,13 +101,10 @@ def make_directory(
     Create directories.
     """
     for dir_name in dir_names:
-        try:
-            if p:
-                os.makedirs(dir_name, exist_ok=True)
-            else:
-                os.mkdir(dir_name)
-        except Exception as e:
-            echo.error(f"mkdir: {dir_name}: {str(e)}")
+        if make_parents:
+            os.makedirs(dir_name, exist_ok=True)
+        else:
+            os.mkdir(dir_name)
 
 
 @just_cli.command(name="rm")
@@ -126,37 +114,26 @@ def remove_files(
         help="Files or directories to remove",
         show_default=False
     )],
-    r: Annotated[bool, typer.Option(
+    recursive: Annotated[bool, typer.Option(
         "--recursive", "-r",
         help="Remove directories and their contents recursively"
-    )] = False,
-    f: Annotated[bool, typer.Option(
-        "--force", "-f",
-        help="Ignore nonexistent files and arguments, never prompt"
     )] = False
 ):
     """
     Remove files or directories.
     """
     for target in targets:
-        try:
-            target_path = Path(target)
-            if not target_path.exists():
-                if not f:
-                    echo.error(f"rm: cannot remove '{target}': No such file or directory")
+        target_path = Path(target)
+        if not target_path.exists():
+            echo.red(f"rm: cannot remove '{target}': No such file or directory")
+            continue
+        if target_path.is_dir():
+            # Prompt for confirmation when removing directory without -r
+            if not recursive and not confirm_action(f"rm: descend into directory '{target}'?"):
                 continue
-
-            if target_path.is_dir():
-                if not r and not f:
-                    # Prompt for confirmation when removing directory without -r
-                    if not confirm_action(f"rm: descend into directory '{target}'?"):
-                        continue
-                shutil.rmtree(target_path)
-            else:
-                os.remove(target_path)
-        except Exception as e:
-            if not f:
-                echo.error(f"rm: {target}: {str(e)}")
+            shutil.rmtree(target_path)
+        else:
+            os.remove(target_path)
 
 
 @just_cli.command(name="cp")
@@ -170,7 +147,7 @@ def copy_files(
         help="Destination file or directory",
         show_default=False
     )],
-    r: Annotated[bool, typer.Option(
+    recursive: Annotated[bool, typer.Option(
         "--recursive", "-r",
         help="Copy directories recursively"
     )] = False
@@ -178,28 +155,25 @@ def copy_files(
     """
     Copy files or directories.
     """
-    try:
-        source_path = Path(source)
-        dest_path = Path(destination)
+    source_path = Path(source)
+    dest_path = Path(destination)
 
-        if not source_path.exists():
-            echo.error(f"cp: cannot stat '{source}': No such file or directory")
-            return
+    if not source_path.exists():
+        echo.red(f"cp: cannot stat '{source}': No such file or directory")
+        return
 
-        if source_path.is_dir():
-            if not r:
-                # Prompt for confirmation when copying directory without -r
-                if not confirm_action(f"cp: -r not specified; omitting directory '{source}'"):
-                    return
-            if dest_path.exists() and dest_path.is_dir():
-                # Copy directory into existing directory
-                shutil.copytree(source_path, dest_path / source_path.name)
-            else:
-                shutil.copytree(source_path, dest_path)
+    if source_path.is_dir():
+        if not recursive:
+            # Prompt for confirmation when copying directory without -r
+            if not confirm_action(f"cp: -r not specified; omitting directory '{source}'"):
+                return
+        if dest_path.exists() and dest_path.is_dir():
+            # Copy directory into existing directory
+            shutil.copytree(source_path, dest_path / source_path.name)
         else:
-            shutil.copy2(source_path, dest_path)
-    except Exception as e:
-        echo.error(f"cp: {str(e)}")
+            shutil.copytree(source_path, dest_path)
+    else:
+        shutil.copy2(source_path, dest_path)
 
 
 @just_cli.command(name="mv")
@@ -217,14 +191,13 @@ def move_files(
     """
     Move or rename files or directories.
     """
-    try:
-        source_path = Path(source)
-        dest_path = Path(destination)
+    source_path = Path(source)
+    dest_path = Path(destination)
 
-        if not source_path.exists():
-            echo.error(f"mv: cannot stat '{source}': No such file or directory")
-            return
+    if not source_path.exists():
+        echo.red(f"mv: cannot stat '{source}': No such file or directory")
+        return
+    if dest_path.exists() and not confirm_action(f"mv: overwrite '{destination}'?"):
+        return
 
-        shutil.move(str(source_path), str(dest_path))
-    except Exception as e:
-        echo.error(f"mv: {str(e)}")
+    shutil.move(str(source_path), str(dest_path))
