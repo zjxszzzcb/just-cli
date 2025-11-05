@@ -6,6 +6,36 @@ from just.utils.progress import progress_bar
 import just.utils.echo_utils as echo
 
 
+def _download_formatter(completed, total, _elapsed, _unit, speed=None, _eta=None, _percentage=None):
+    """Formatter function for download progress with file sizes and speed."""
+
+    def format_size(size_bytes):
+        if size_bytes == 0:
+            return "0 B"
+        size_names = ["B", "KB", "MB", "GB", "TB"]
+        i = 0
+        size = float(size_bytes)
+        while size >= 1024.0 and i < len(size_names) - 1:
+            size /= 1024.0
+            i += 1
+        if i == 0:
+            return f"{int(size)} {size_names[i]}"
+        else:
+            return f"{size:.1f} {size_names[i]}"
+
+    def format_speed(speed_bps):
+        return format_size(speed_bps) + "/s"
+
+    completed_formatted = format_size(completed)
+    total_formatted = format_size(total)
+
+    if speed is not None and speed > 0:
+        speed_text = format_speed(speed)
+        return f"{completed_formatted}/{total_formatted} • {speed_text}"
+    else:
+        return f"{completed_formatted}/{total_formatted}"
+
+
 def download_with_resume(
     url: str,
     headers: Dict[str, str],
@@ -312,8 +342,25 @@ def _download_stream(
             f"Opening file {output_file} with mode {mode}"
         )
 
+    # Prepare progress bar arguments with both columns and formatter
+    # Rich mode will prefer columns, Simple mode will use formatter
+    from rich.progress import FileSizeColumn, TransferSpeedColumn, TextColumn
+    download_columns = [
+        FileSizeColumn(),  # Shows completed/total file size with proper units
+        TextColumn("•"),
+        TransferSpeedColumn()  # Shows download speed
+    ]
+
+    progress_kwargs = {
+        "total": total_size,
+        "desc": "Downloading",
+        "unit": "b",
+        "progress_desc_columns": download_columns,
+        "progress_desc_formatter": _download_formatter
+    }
+
     with open(output_file, mode) as f:
-        with progress_bar(total=total_size, desc="Downloading", unit="b") as pbar:
+        with progress_bar(**progress_kwargs) as pbar:
             # Update progress for already downloaded bytes
             pbar.n = first_byte
             pbar.refresh()  # Force refresh to show correct initial position
