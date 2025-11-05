@@ -32,10 +32,12 @@ def cat_file(
     for file_path in file_paths:
         if os.path.isdir(file_path):
             echo.red(f"cat: {file_path} is a directory")
+            exit(1)
         try:
             echo.echo(read_file_text(file_path, with_line_numbers=with_line_numbers))
         except FileNotFoundError:
             echo.red(f"cat: The file {file_path} does not exist")
+            exit(1)
 
 
 @just_cli.command(name="ls")
@@ -60,7 +62,7 @@ def list_files(
     p = Path(path)
     if not p.exists():
         echo.red(f"ls: cannot access '{path}': No such file or directory")
-        return
+        exit(1)
 
     if not p.is_dir():
         if long_format:
@@ -126,7 +128,7 @@ def remove_files(
         target_path = Path(target)
         if not target_path.exists():
             echo.red(f"rm: cannot remove '{target}': No such file or directory")
-            continue
+            exit(1)
         if target_path.is_dir():
             # Prompt for confirmation when removing directory without -r
             if not recursive and not confirm_action(f"rm: descend into directory '{target}'?"):
@@ -160,13 +162,14 @@ def copy_files(
 
     if not source_path.exists():
         echo.red(f"cp: cannot stat '{source}': No such file or directory")
-        return
+        exit(1)
+
 
     if source_path.is_dir():
         if not recursive:
             # Prompt for confirmation when copying directory without -r
             if not confirm_action(f"cp: -r not specified; omitting directory '{source}'"):
-                return
+                exit(1)
         if dest_path.exists() and dest_path.is_dir():
             # Copy directory into existing directory
             shutil.copytree(source_path, dest_path / source_path.name)
@@ -196,8 +199,8 @@ def move_files(
 
     if not source_path.exists():
         echo.red(f"mv: cannot stat '{source}': No such file or directory")
-        return
+        exit(1)
     if dest_path.exists() and not confirm_action(f"mv: overwrite '{destination}'?"):
-        return
+        exit(1)
 
     shutil.move(str(source_path), str(dest_path))

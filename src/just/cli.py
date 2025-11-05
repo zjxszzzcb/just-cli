@@ -24,7 +24,7 @@ def capture_exception(func: Callable[..., T]) -> Callable[..., Optional[T]]:
             return func(*args, **kwargs)
         except Exception as e:
             echo.error(str(e))
-            return None
+            exit(1)
 
     return wrapper
 
