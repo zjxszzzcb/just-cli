@@ -1,29 +1,63 @@
-"""
-Unified progress bar interface with automatic fallback between Rich and simple text implementations.
-"""
-
+"""Unified progress bar interface with automatic fallback between Rich and simple text implementations."""
+import os
 import sys
-from typing import Optional, Iterator, Any, Union
+import time
+
 from abc import ABC, abstractmethod
+from typing import Iterator, Any
+
+from rich.progress import Progress, BarColumn, TextColumn
+from rich.progress import SpinnerColumn
 
 
 class ProgressBarBase(ABC):
     """Base class for progress bars"""
 
-    def __init__(self, iterable=None, total=None, desc="", unit="it", **kwargs):
+    def __init__(self, iterable=None, *, total=None, desc="", unit="it", **kwargs):
         self.iterable = iterable
-        self.total = total or (len(iterable) if iterable else 100)
+        # If iterable is None, total must be provided
+        if iterable is None and total is None:
+            raise ValueError("total must be provided when iterable is None")
+
+        # total must be greater than or equal to 0
+        if total is not None and total <= 0:
+            raise ValueError("total must be greater than or equal to 0")
+
+        if iterable and total is not None and total != len(iterable):
+            raise ValueError("total must be equal to the length of iterable")
+
+        # Set total, handling the case where total is 0 or None
+        if total is not None:
+            self.total = total
+        elif iterable is not None:
+            self.total = len(iterable)
+        else:
+            self.total = 0
+
         self.desc = desc
         self.unit = unit
         self.n = 0
         self.closed = False
+        self._started = False  # Track if progress bar has been started
+        self.start_time = None  # Initialize start_time
 
     def __iter__(self) -> Iterator[Any]:
         if self.iterable is None:
             raise TypeError("Must provide iterable to iterate over")
-        for obj in self.iterable:
-            yield obj
-            self.update(1)
+
+        # Start the progress bar if it hasn't been started yet
+        if not self._started:
+            self.start()
+            self._started = True
+
+        try:
+            for obj in self.iterable:
+                yield obj
+                self.update(1)
+        finally:
+            # Close the progress bar when iteration is complete
+            if not self.closed:
+                self.close()
 
     def __enter__(self):
         self.start()
@@ -40,7 +74,7 @@ class ProgressBarBase(ABC):
 
     def start(self) -> None:
         """Start the progress bar"""
-        pass
+        self.start_time = time.time()
 
     def close(self) -> None:
         """Close the progress bar"""
@@ -48,10 +82,65 @@ class ProgressBarBase(ABC):
 
     def refresh(self) -> None:
         """Refresh the progress bar display (safe implementation)"""
-        try:
-            self.display()
-        except Exception:
-            pass
+        self.display()
+
+
+    @staticmethod
+    def _format_time(seconds: float) -> str:
+        """Format time with intelligent units"""
+        if seconds < 0:
+            seconds = 0
+
+        # For very short times (less than 1 minute), show in seconds with 1 decimal place
+        if seconds < 60:
+            return f"{seconds:.1f}s"
+
+        # For times up to 1 hour, show in minutes and seconds
+        if seconds < 3600:
+            minutes = int(seconds // 60)
+            secs = int(seconds % 60)
+            if secs > 0:
+                return f"{minutes}m{secs}s"
+            else:
+                return f"{minutes}m"
+
+        # For times up to 1 day, show in hours, minutes and seconds
+        if seconds < 86400:
+            hours = int(seconds // 3600)
+            minutes = int((seconds % 3600) // 60)
+            secs = int(seconds % 60)
+            if minutes > 0 and secs > 0:
+                return f"{hours}h{minutes}m{secs}s"
+            elif minutes > 0:
+                return f"{hours}h{minutes}m"
+            elif secs > 0:
+                return f"{hours}h{secs}s"
+            else:
+                return f"{hours}h"
+
+        # For longer times, show in days, hours, minutes and seconds
+        days = int(seconds // 86400)
+        hours = int((seconds % 86400) // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+
+        if hours > 0 and minutes > 0 and secs > 0:
+            return f"{days}d{hours}h{minutes}m{secs}s"
+        elif hours > 0 and minutes > 0:
+            return f"{days}d{hours}h{minutes}m"
+        elif hours > 0 and secs > 0:
+            return f"{days}d{hours}h{secs}s"
+        elif hours > 0:
+            return f"{days}d{hours}h"
+        elif minutes > 0 and secs > 0:
+            return f"{days}d{minutes}m{secs}s"
+        elif minutes > 0:
+            return f"{days}d{minutes}m"
+        elif secs > 0:
+            return f"{days}d{secs}s"
+        else:
+            return f"{days}d"
+
 
     @abstractmethod
     def display(self) -> None:
@@ -60,89 +149,147 @@ class ProgressBarBase(ABC):
 
 
 class RichProgressBar(ProgressBarBase):
-    """Rich progress bar implementation"""
+    """Rich progress bar implementation with enhanced visuals"""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._progress = None
-        self._task = None
+    def __init__(self, iterable=None, *, total=None, desc="", unit="it", **kwargs):
+        super().__init__(iterable, total=total, desc=desc, unit=unit, **kwargs)
+        # Create all columns for the progress bar with enhanced styling
+        columns = [
+            SpinnerColumn(),
+            TextColumn("[bold #fde047]{task.description}"),  # Bright warm yellow
+            BarColumn(
+                bar_width=40,
+                complete_style="#4ade80",  # Soft green
+                finished_style="#4ade80",  # Keep green when finished
+                pulse_style="#f472b6",  # Pinker red
+                style="#9ca3af"  # Medium gray background
+            ),
+            TextColumn("[bold #f472b6]{task.percentage:>3.0f}%"),  # Pinker red
+            TextColumn("•"),
+            TextColumn(
+                "[bold #06b6d4]{task.completed}/{task.total}[/bold #06b6d4] "
+                "[#eab308]{task.fields[unit]}[/#eab308]"
+            ),  # Teal numbers, amber unit
+            TextColumn("•"),
+            TextColumn(
+                "[[#4ade80]{task.fields[elapsed_formatted]}[/#4ade80]"
+                "<[#c084fc]{task.fields[remaining_formatted]}[/#c084fc]]"
+            ),  # Green/purple time
+        ]
+
+        self._progress = Progress(*columns)
+        self._task = self._progress.add_task(
+            self.desc,
+            total=self.total,
+            unit=self.unit,
+            elapsed_formatted="0.0s",
+            remaining_formatted="0.0s"
+        )
 
     def start(self) -> None:
-        try:
-            from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn, DownloadColumn
-            self._progress = Progress(
-                TextColumn("[bold blue]{task.description}"),
-                BarColumn(bar_width=None),
-                TextColumn("[progress.percentage]{task.percentage:>3.1f}%"),
-                TextColumn("•"),
-                DownloadColumn(binary_units=True) if self.unit in ["b", "bytes"] else TextColumn("[progress.download]{task.completed:>8.1f}/{task.total:>8.1f} {task.fields[unit]}"),
-                TextColumn("•"),
-                TimeRemainingColumn(),
-            )
-            self._task = self._progress.add_task(
-                self.desc,
-                total=self.total,
-                unit=self.unit
-            )
-            self._progress.start()
-        except Exception as e:
-            # Fallback to simple progress bar if Rich fails
-            self.__class__ = SimpleProgressBar
-            self.__init__(self.iterable, self.total, self.desc, self.unit)
-            self.start()
+        self._progress.start()
+        # Initialize start_time for consistency with base class
+        if not hasattr(self, 'start_time') or self.start_time is None:
+            self.start_time = time.time()
 
     def update(self, n: int = 1) -> None:
-        if hasattr(self, '_progress') and self._progress and hasattr(self, '_task') and self._task is not None and not self.closed:
-            try:
-                self._progress.update(self._task, advance=n)
-                self.n += n
-            except Exception:
-                # If Rich fails during update, fallback to simple
-                pass
+        # Update the progress
+        self._progress.update(self._task, advance=n)
+        self.n += n
+
+        # Calculate and format elapsed and remaining time
+        elapsed_time = time.time() - self.start_time if self.start_time else 0
+        if self.n > 0 and elapsed_time > 0 and self.total > 0:
+            rate = self.n / elapsed_time
+            remaining_items = self.total - self.n
+            eta = remaining_items / rate if rate > 0 else 0
+        else:
+            eta = 0
+
+        # Format times using our custom formatter
+        elapsed_formatted = self._format_time(elapsed_time)
+        remaining_formatted = self._format_time(eta)
+
+        # Update task with formatted times
+        self._progress.update(
+            self._task,
+            elapsed_formatted=elapsed_formatted,
+            remaining_formatted=remaining_formatted
+        )
 
     def display(self) -> None:
-        # Rich handles display automatically
-        pass
+        # In iterator mode, we need to manually refresh the display
+        # Rich normally handles this automatically, but in some cases we need to force it
+
+        self._progress.refresh()
+
 
     def close(self) -> None:
-        if hasattr(self, '_progress') and self._progress and not self.closed:
-            try:
-                self._progress.stop()
-            except Exception:
-                pass
+        if not self.closed:
+            self._progress.stop()
             self.closed = True
 
     def refresh(self) -> None:
         """Refresh the Rich progress bar"""
-        if hasattr(self, '_progress') and self._progress and hasattr(self, '_task') and self._task is not None and not self.closed:
-            try:
-                # Update the task with current progress
-                self._progress.update(self._task, completed=self.n)
-                # Refresh the display
-                self._progress.refresh()
-            except Exception:
-                # Fall back to base implementation if Rich fails
-                super().refresh()
+        # Update the task with current progress
+        self._progress.update(self._task, completed=self.n)
+        # Refresh the display
+        self._progress.refresh()
+
 
 
 class SimpleProgressBar(ProgressBarBase):
     """Simple text progress bar implementation"""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, iterable=None, *, total=None, desc="", unit="it", **kwargs):
+        super().__init__(iterable, total=total, desc=desc, unit=unit, **kwargs)
         self.bar_length = 30
+        self.start_time = None
 
     def display(self) -> None:
         if self.closed:
             return
 
         if self.total > 0:
+            # Calculate elapsed time
+            elapsed_time = time.time() - self.start_time if self.start_time else 0
+
+            # Calculate estimated remaining time
+            if self.n > 0 and elapsed_time > 0:
+                rate = self.n / elapsed_time
+                remaining_items = self.total - self.n
+                eta = remaining_items / rate if rate > 0 else 0
+            else:
+                eta = 0
+
+            # Format time values
+            elapsed_str = self._format_time(elapsed_time)
+            eta_str = self._format_time(eta)
+
             percent = (self.n / self.total) * 100
             filled_length = int(self.bar_length * self.n // self.total)
             bar = '█' * filled_length + '░' * (self.bar_length - filled_length)
-            print(f"\r{self.desc}: |{bar}| {percent:.1f}% ({self.n}/{self.total} {self.unit})", end='', flush=True)
+            # Always show percentage with 1 decimal place for consistency
+            percent_display = f"{percent:.1f}"
+            progress_text = (
+                f"\r{self.desc}: |{bar}| {percent_display}% "
+                f"({self.n}/{self.total} {self.unit}) "
+                f"[{elapsed_str}<{eta_str}]"
+            )
+            # Ensure consistent width to prevent text jumping
+            # Calculate a reasonable maximum width for the progress text
+            # Using example values for maximum length fields
+            example_elapsed = "999.9s"  # Example of longest time format
+            example_eta = "999.9s"      # Example of longest time format
+            max_width = len(f"{self.desc}: |{'█' * self.bar_length}| 100.0% ({self.total}/{self.total} {self.unit}) [{example_elapsed}<{example_eta}]")
+            progress_text = progress_text.ljust(max_width)
+            print(progress_text, end='', flush=True)
         else:
-            print(f"\r{self.desc}: {self.n} {self.unit}", end='', flush=True)
+            # For unknown total, just show elapsed time
+            elapsed_time = time.time() - self.start_time if self.start_time else 0
+            elapsed_str = self._format_time(elapsed_time)
+            progress_text = f"\r{self.desc}: {self.n} {self.unit} [{elapsed_str}]"
+            print(progress_text, end='', flush=True)
 
     def close(self) -> None:
         if not self.closed:
@@ -150,24 +297,20 @@ class SimpleProgressBar(ProgressBarBase):
             self.closed = True
 
 
-class DummyProgressBar(ProgressBarBase):
-    """Dummy progress bar that does nothing (when disabled)"""
-
-    def display(self) -> None:
-        pass
-
-    def close(self) -> None:
-        self.closed = True
 
 
-def _has_rich_support() -> bool:
-    """Check if Rich is available and terminal supports it"""
-    try:
-        import rich
-        # Additional checks could be added here for terminal capability
-        return True
-    except ImportError:
+def _terminal_supports_rich() -> bool:
+    """Check if terminal supports Rich advanced display features"""
+    # Check if we're in a terminal that supports Rich
+    if not sys.stdout.isatty():
         return False
+
+    term = os.getenv('TERM', '')
+    if term in ('dumb', 'unknown'):
+        return False
+
+    # Additional checks could be added here for specific terminal capabilities
+    return True
 
 
 def _get_progress_bar_class(mode: str = "auto"):
@@ -182,20 +325,27 @@ def _get_progress_bar_class(mode: str = "auto"):
     elif mode == "simple":
         return SimpleProgressBar
     else:  # auto mode
-        return RichProgressBar if _has_rich_support() else SimpleProgressBar
+        # In auto mode, use Rich if terminal supports it
+        return RichProgressBar if _terminal_supports_rich() else SimpleProgressBar
 
 
-def progress_bar(iterable=None, total=None, desc="", unit="it",
-                 disable=False, mode="auto", **kwargs):
+def progress_bar(
+    iterable=None,
+    desc="",
+    unit="it",
+    *,
+    total=None,
+    mode="auto",
+    **kwargs
+):
     """
     Unified progress bar interface with automatic fallback.
 
     Args:
         iterable: Iterable to wrap with progress bar
-        total: Total number of iterations
+        total: Total number of iterations (keyword-only argument)
         desc: Description text
         unit: Unit of measurement
-        disable: Disable progress bar
         mode: Progress bar mode ("auto", "rich", "simple")
 
     Examples:
@@ -213,12 +363,9 @@ def progress_bar(iterable=None, total=None, desc="", unit="it",
         for i in progress_bar(range(100), mode="simple"):
             time.sleep(0.01)
     """
-    if disable:
-        return DummyProgressBar(iterable, total, desc, unit, **kwargs)
-
     # Get appropriate progress bar class
     pb_class = _get_progress_bar_class(mode)
-    pb = pb_class(iterable, total, desc, unit, **kwargs)
+    pb = pb_class(iterable, total=total, desc=desc, unit=unit, **kwargs)
 
     # If used as context manager or manual control
     if iterable is None and total is not None:
