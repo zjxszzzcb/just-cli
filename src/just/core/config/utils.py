@@ -36,6 +36,11 @@ def get_command_dir() -> Path:
     return Path(__file__).parent.parent.parent / "commands"
 
 
+def get_basic_installer_dir() -> Path:
+    """Get basic installer directory path"""
+    return Path(__file__).parent.parent.parent / "installers"
+
+
 def ensure_extensions_dir_exists() -> Path:
     """Ensure user extensions directory exists, create if not"""
     extensions_dir = get_extension_dir()
