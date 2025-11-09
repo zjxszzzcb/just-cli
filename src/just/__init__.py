@@ -1,5 +1,5 @@
-from just.cli import just_cli, load_env, update_env_file, capture_exception
-from just.config import JustConfig
+from just.cli import just_cli,capture_exception
+from just.core.config import JustConfig, load_env_config, update_env_config
 from just.utils import create_typer_app, echo
 
 
@@ -11,6 +11,6 @@ __all__ = [
     "echo",
     "config",
     "just_cli",
-    "load_env",
-    "update_env_file"
+    "load_env_config",
+    "update_env_config",
 ]

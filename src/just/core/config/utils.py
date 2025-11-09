@@ -1,5 +1,5 @@
 """JUST CLI Configuration Utility Functions"""
-
+from dotenv import load_dotenv, set_key
 from pathlib import Path
 from typing import Optional
 
@@ -12,6 +12,12 @@ def get_config_dir() -> Path:
     return home / ".just"
 
 
+def get_cache_dir() -> Path:
+    """Get JUST cache directory path"""
+    home = Path.home()
+    return home / ".cache" / "just"
+
+
 def ensure_config_dir_exists() -> Path:
     """Ensure JUST configuration directory exists, create if not"""
     config_dir = get_config_dir()
@@ -19,14 +25,9 @@ def ensure_config_dir_exists() -> Path:
     return config_dir
 
 
-def _get_system_info_file() -> Path:
-    """Get system information configuration file path"""
-    return get_config_dir() / "system_info.json"
-
-
 def get_extensions_dir() -> Path:
     """Get user extensions directory path"""
-    return get_config_dir() / "extensions"
+    return get_cache_dir() / "extensions"
 
 
 def ensure_extensions_dir_exists() -> Path:
@@ -34,6 +35,24 @@ def ensure_extensions_dir_exists() -> Path:
     extensions_dir = get_extensions_dir()
     extensions_dir.mkdir(parents=True, exist_ok=True)
     return extensions_dir
+
+
+def get_env_config_file() -> Path:
+    """Get JUST environment configuration file path"""
+    return get_config_dir() / ".env"
+
+
+def load_env_config():
+    load_dotenv(Path(__file__).parent / ".env")
+
+
+def update_env_config(key: str, value: str):
+    set_key(str(Path(__file__).parent / ".env"), key, value)
+
+
+def _get_system_info_file() -> Path:
+    """Get system information configuration file path"""
+    return get_config_dir() / "system_info.json"
 
 
 def load_system_config() -> Optional[SystemConfig]:

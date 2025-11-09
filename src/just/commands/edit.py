@@ -4,8 +4,7 @@ import typer
 from pathlib import Path
 from typing_extensions import Annotated
 
-from just import just_cli, config, echo, update_env_file, capture_exception
-from just.commands.install.edit import install_microsoft_edit
+from just import just_cli, config, echo, capture_exception, update_env_config
 from just.tui import FileEditor
 from just.utils import execute_command
 
@@ -40,17 +39,18 @@ def edit_file(
     if config.JUST_EDIT_USE_TOOL == 'unk':
         option = input("Which editor would you like to use? [e]dit or [t]extual: ")
         if option.lower() == 't':
-            update_env_file("JUST_EDIT_USE_TOOL", "textual")
+            echo.info(f'Set JUST_EDIT_USE_TOOL="textual"')
+            update_env_config("JUST_EDIT_USE_TOOL", "textual")
             os.environ["JUST_EDIT_USE_TOOL"] = "textual"
         else:
-            update_env_file("JUST_EDIT_USE_TOOL", "edit")
+            echo.info(f'Set JUST_EDIT_USE_TOOL="edit"')
+            update_env_config("JUST_EDIT_USE_TOOL", "edit")
             os.environ["JUST_EDIT_USE_TOOL"] = "edit"
 
     if config.JUST_EDIT_USE_TOOL == 'edit':
         execute_command(f"edit {file_path}")
     elif os.path.getsize(file_path) > 4096 * 1024:
         echo.warning("File is too large for textual editor. Try to use microsoft edit instead.")
-        install_microsoft_edit()
         execute_command(f"edit {file_path}")
     else:
         edit_file_by_textual(file_path)
