@@ -5,14 +5,13 @@ from pathlib import Path
 from typing_extensions import Annotated
 
 from just import just_cli, config, echo, capture_exception, update_env_config
+from just.core.config import get_env_config_file
 from just.tui import FileEditor
 from just.utils import execute_command
 
 
-__package_dir__ = os.path.dirname(os.path.dirname(__file__))
-
 INTERNAL_FILES = {
-    "config": str(Path(__file__).parent.parent / ".env")
+    "config": str(get_env_config_file())
 }
 
 

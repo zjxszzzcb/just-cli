@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from just.core.system_probe.system_info import SystemConfig
+from just.utils.file_utils import write_file
 
 
 def get_config_dir() -> Path:
@@ -43,11 +44,19 @@ def get_env_config_file() -> Path:
 
 
 def load_env_config():
-    load_dotenv(Path(__file__).parent / ".env")
+    env_config_file = get_env_config_file()
+    if not env_config_file.exists():
+        ensure_config_dir_exists()
+        write_file(str(env_config_file), "")
+    load_dotenv(get_env_config_file())
 
 
 def update_env_config(key: str, value: str):
-    set_key(str(Path(__file__).parent / ".env"), key, value)
+    env_config_file = get_env_config_file()
+    if not env_config_file.exists():
+        ensure_config_dir_exists()
+        write_file(str(env_config_file), "")
+    set_key(get_env_config_file(), key, value)
 
 
 def _get_system_info_file() -> Path:
