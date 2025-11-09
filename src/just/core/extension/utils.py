@@ -3,6 +3,8 @@ import re
 from pathlib import Path
 from typing import Any, List, Tuple
 
+from just.core.config import get_command_dir, get_extension_dir
+
 
 TYPES = {
     'str': str,
@@ -22,8 +24,8 @@ def search_existing_script(just_commands: List[str]) -> Tuple[bool, str]:
     Returns:
         Tuple of (exists, file_path)
     """
-    commands_dir = Path(__file__).parent.parent.parent / 'commands'
-    extensions_dir = Path(__file__).parent.parent.parent / 'extensions'
+    commands_dir = get_command_dir()
+    extensions_dir = get_extension_dir()
 
     # Remove 'just' if it's the first command
     commands = just_commands.copy()

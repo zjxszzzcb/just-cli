@@ -26,14 +26,19 @@ def ensure_config_dir_exists() -> Path:
     return config_dir
 
 
-def get_extensions_dir() -> Path:
+def get_extension_dir() -> Path:
     """Get user extensions directory path"""
-    return get_cache_dir() / "extensions"
+    return Path(__file__).parent.parent.parent / "extensions"
+
+
+def get_command_dir() -> Path:
+    """Get user commands directory path"""
+    return Path(__file__).parent.parent.parent / "commands"
 
 
 def ensure_extensions_dir_exists() -> Path:
     """Ensure user extensions directory exists, create if not"""
-    extensions_dir = get_extensions_dir()
+    extensions_dir = get_extension_dir()
     extensions_dir.mkdir(parents=True, exist_ok=True)
     return extensions_dir
 

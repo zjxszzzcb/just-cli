@@ -7,7 +7,7 @@ from pathlib import Path
 from typer.core import TyperGroup
 from typing import Any, Callable, List, TypeVar, Optional
 
-from just.core.config import load_env_config
+from just.core.config import load_env_config, get_command_dir, get_extension_dir
 from just.utils import echo
 from just.utils.typer_utils import create_typer_app
 
@@ -56,22 +56,8 @@ def traverse_script_dir(directory: str) -> List[str]:
 def main():
     # Dynamically import all script modules to register their commands
     script_modules = []
-    script_modules.extend(
-        traverse_script_dir(
-            directory=os.path.join(
-                os.path.dirname(__file__),
-                "commands"
-            )
-        )
-    )
-    script_modules.extend(
-        traverse_script_dir(
-            directory=os.path.join(
-                os.path.dirname(__file__),
-                "extensions"
-            )
-        )
-    )
+    script_modules.extend(traverse_script_dir(get_command_dir().as_posix()))
+    script_modules.extend(traverse_script_dir(get_extension_dir().as_posix()))
     script_modules.sort()
     missing_packages = []
     for module_name in script_modules:
