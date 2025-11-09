@@ -6,13 +6,18 @@ from dataclasses import dataclass, asdict
 from typing import List, Literal, Dict, Optional
 
 
+Platform = Literal["linux", "darwin", "windows"]
+Arch = Literal["x86_64", "aarch64"]
+
+
+
 @dataclass
 class SystemInfo:
     """Store core system information"""
-    platform: Literal["linux", "darwin", "windows"]
+    platform: Platform
     distro: str  # e.g., "ubuntu", "fedora", "macos", "windows"
     distro_version: str  # e.g., "22.04", "38", "14.2", "11"
-    arch: Literal["x86_64", "aarch64"]
+    arch: Arch
     shell_name: str
     shell_profile: str
     path_configured: bool = False  # Default value during init
