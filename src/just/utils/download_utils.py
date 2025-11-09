@@ -36,6 +36,79 @@ def _download_formatter(completed, total, _elapsed, _unit, speed=None, _eta=None
         return f"{completed_formatted}/{total_formatted}"
 
 
+def _get_total_file_size(url: str, headers: Dict[str, str], verbose: bool = False) -> int:
+    """
+    Get the total file size by making HEAD request and fallback to range request if needed.
+
+    Args:
+        url: URL to check
+        headers: Custom headers
+        verbose: Enable verbose logging
+
+    Returns:
+        Total file size in bytes, or 0 if unable to determine
+    """
+    try:
+        if verbose:
+            echo.info(f"Making HEAD request to check total file size")
+        head_response = httpx.head(url, headers=headers, follow_redirects=True, timeout=30.0)
+        total_size = int(head_response.headers.get('content-length', 0))
+        if verbose:
+            echo.info(f"HEAD response status: {head_response.status_code}")
+            echo.info(f"Total size from HEAD: {total_size}")
+
+        # If HEAD request doesn't return content-length, try a GET request with range=0-0
+        if total_size == 0:
+            if verbose:
+                echo.info(f"HEAD request didn't return content-length, trying range request")
+            range_response = httpx.get(
+                url,
+                headers={**headers, 'Range': 'bytes=0-0'},
+                follow_redirects=True,
+                timeout=30.0
+            )
+            total_size = _extract_total_size_from_range_response(range_response, verbose)
+
+        return total_size
+    except Exception as e:
+        if verbose:
+            echo.info(f"Failed to get total file size: {e}")
+        return 0
+
+
+def _extract_total_size_from_range_response(response: httpx.Response, verbose: bool = False) -> int:
+    """
+    Extract total file size from a range request response.
+
+    Args:
+        response: HTTP response from range request
+        verbose: Enable verbose logging
+
+    Returns:
+        Total file size in bytes, or 0 if unable to determine
+    """
+    if 'content-range' not in response.headers:
+        return 0
+
+    content_range = response.headers.get('content-range', '')
+    if not content_range.startswith('bytes '):
+        return 0
+
+    range_info = content_range[6:]  # Remove 'bytes ' prefix
+    if '/' not in range_info:
+        return 0
+
+    _, total_size_str = range_info.split('/')
+    if not total_size_str.isdigit():
+        return 0
+
+    total_size = int(total_size_str)
+    if verbose:
+        echo.info(f"Total size from range request: {total_size}")
+
+    return total_size
+
+
 def download_with_resume(
     url: str,
     headers: Dict[str, str],
@@ -61,6 +134,14 @@ def download_with_resume(
     # Use a temporary file name during download to avoid conflicts
     temp_file = output_file + ".tmp"
 
+    # Remove any existing temporary file
+    if os.path.exists(temp_file):
+        try:
+            os.remove(temp_file)
+        except Exception as e:
+            if verbose:
+                echo.info(f"Failed to remove existing temp file: {e}")
+
     # Check if file already exists for resuming
     if os.path.exists(output_file):
         # Check if file is already completely downloaded
@@ -68,57 +149,38 @@ def download_with_resume(
         if verbose:
             echo.info(f"File exists with size: {existing_file_size} bytes")
 
-        # Make a HEAD request to get the total file size
-        try:
-            if verbose:
-                echo.info(f"Making HEAD request to check total file size")
-            head_response = httpx.head(url, headers=headers, follow_redirects=True, timeout=30.0)
-            total_size = int(head_response.headers.get('content-length', 0))
-            if verbose:
-                echo.info(f"HEAD response status: {head_response.status_code}")
-                echo.info(f"HEAD response headers: {dict(head_response.headers)}")
-                echo.info(f"Total size from HEAD: {total_size}")
+        # Get the total file size
+        total_size = _get_total_file_size(url, headers, verbose)
 
-            # If HEAD request doesn't return content-length, try a GET request with range=0-0
-            if total_size == 0:
-                if verbose:
-                    echo.info(f"HEAD request didn't return content-length, trying range request")
-                range_response = httpx.get(
-                    url,
-                    headers={**headers, 'Range': 'bytes=0-0'},
-                    follow_redirects=True,
-                    timeout=30.0
-                )
-                if 'content-range' in range_response.headers:
-                    content_range = range_response.headers.get('content-range', '')
-                    if content_range.startswith('bytes '):
-                        range_info = content_range[6:]  # Remove 'bytes ' prefix
-                        if '/' in range_info:
-                            _, total_size_str = range_info.split('/')
-                            if total_size_str.isdigit():
-                                total_size = int(total_size_str)
-                                if verbose:
-                                    echo.info(f"Total size from range request: {total_size}")
+        if existing_file_size == total_size and total_size > 0:
+            echo.info(f"File already exists and is complete: {output_file}")
+            return True
+        elif verbose:
+            echo.info(f"File size mismatch - existing: {existing_file_size}, total: {total_size}")
 
-            if existing_file_size == total_size and total_size > 0:
-                echo.info(f"File already exists and is complete: {output_file}")
-                return True
-            elif verbose:
-                echo.info(f"File size mismatch - existing: {existing_file_size}, total: {total_size}")
-        except Exception as e:
-            if verbose:
-                echo.info(f"HEAD request failed: {e}")
+        # Check if existing file is larger than remote file
+        if existing_file_size >= total_size > 0:
+            # Import confirm_action here to avoid circular imports
+            from just.utils.user_interaction import confirm_action
+            if confirm_action(f"Local file ({existing_file_size} bytes) is larger than or equal to remote file ({total_size} bytes). Delete and re-download?"):
+                os.remove(output_file)
+                first_byte = 0
+                mode = "wb"
+            else:
+                echo.info("Download cancelled by user.")
+                return False
+        else:
+            # File exists but is not complete, resume download
+            first_byte = existing_file_size
+            mode = "ab"
 
-        # File exists but is not complete, resume download
-        first_byte = existing_file_size
-        mode = "ab"
         if verbose:
             echo.info(
                 f"Found existing file: {first_byte} bytes, "
                 f"mode: {mode}"
             )
     elif os.path.exists(temp_file):
-        # If temporary file exists, use it for resuming
+        # If temporary file exists, check its size
         first_byte = os.path.getsize(temp_file)
         mode = "ab"
         if verbose:
@@ -126,20 +188,52 @@ def download_with_resume(
                 f"Found temporary file: {first_byte} bytes, "
                 f"mode: {mode}"
             )
+
+        # Get the total file size
+        total_size = _get_total_file_size(url, headers, verbose)
+
+        # Check if temporary file is larger than or equal to remote file
+        if first_byte >= total_size > 0:
+            # Import confirm_action here to avoid circular imports
+            from just.utils.user_interaction import confirm_action
+            if confirm_action(f"Temporary file ({first_byte} bytes) is larger than or equal to remote file ({total_size} bytes). Delete and re-download?"):
+                os.remove(temp_file)
+                first_byte = 0
+                mode = "wb"
+            else:
+                echo.info("Download cancelled by user.")
+                return False
     else:
         # Fresh download
         first_byte = 0
         mode = "wb"
+        total_size = 0  # Will be determined later
 
     # Prepare headers for initial request
     request_headers = headers.copy()
-    # Add Range header if resuming
+
+    # Add Range header if resuming and first_byte is valid
     if first_byte > 0:
-        request_headers['Range'] = f'bytes={first_byte}-'
-        if verbose:
-            echo.info(
-                f"Added Range header: {request_headers['Range']}"
-            )
+        # Validate that first_byte is less than total_size to avoid 416 errors
+        # Ensure total_size is defined (it should be from earlier in the function, but let's be safe)
+        if 'total_size' not in locals():
+            total_size = 0
+
+        if total_size > 0 and first_byte < total_size:
+            request_headers['Range'] = f'bytes={first_byte}-'
+            if verbose:
+                echo.info(f"Added Range header: {request_headers['Range']}")
+        elif first_byte >= total_size > 0:
+            # If first_byte is >= total_size, start a fresh download
+            first_byte = 0
+            mode = "wb"
+            if verbose:
+                echo.info(f"First byte ({first_byte}) >= total size ({total_size}), starting fresh download")
+        else:
+            # If we can't determine total size, proceed with caution
+            request_headers['Range'] = f'bytes={first_byte}-'
+            if verbose:
+                echo.info(f"Proceeding with Range header (unable to validate): {request_headers['Range']}")
 
     try:
         if verbose:

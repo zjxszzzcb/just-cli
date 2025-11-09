@@ -6,12 +6,9 @@ from typing_extensions import Annotated
 
 from just import just_cli, capture_exception, echo
 from just.utils.file_utils import read_file_text
+from just.utils import confirm_action
 
 
-def confirm_action(message: str) -> bool:
-    """Prompt user for confirmation"""
-    response = input(f"{message} (y/N): ").strip().lower()
-    return response in ['y', 'yes']
 
 
 @just_cli.command(name="cat")

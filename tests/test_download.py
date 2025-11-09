@@ -212,6 +212,110 @@ def test_download_nonexistent_url(test_dir):
     print("✅ Download nonexistent URL test passed")
 
 
+def test_416_error_fix_larger_local_file(test_dir):
+    """Test that the 416 error fix works when local file is larger than remote file."""
+    print("\n=== Testing 416 error fix with larger local file ===")
+
+    # Test URL for a small file (pyproject.toml)
+    url = "https://raw.githubusercontent.com/zjxszzzcb/just-cli/refs/heads/main/pyproject.toml"
+    output_file = str(test_dir / "pyproject.toml.test")
+
+    # Create a local file that's larger than the remote file
+    # The remote pyproject.toml is ~421 bytes, so we'll create a 500-byte file
+    with open(output_file, 'wb') as f:
+        f.write(b'0' * 500)
+
+    # Verify the file was created with the correct size
+    assert os.path.exists(output_file)
+    assert os.path.getsize(output_file) == 500
+
+    # Mock the user input to automatically confirm deletion
+    original_input = input
+
+    def mock_input(prompt):
+        # Automatically confirm deletion for this test
+        if "Delete and re-download?" in prompt:
+            return 'y'
+        return original_input(prompt)
+
+    # Replace the input function
+    import builtins
+    builtins.input = mock_input
+
+    try:
+        # Attempt to download the file
+        success = download_with_resume(url, {}, output_file, verbose=True)
+
+        # Restore original input function
+        builtins.input = original_input
+
+        # Verify download succeeded
+        assert success, "Download should have succeeded after user confirmation"
+        assert os.path.exists(output_file), "Output file should exist after download"
+
+        # Check that the file size is now correct (should be around 421 bytes for pyproject.toml)
+        file_size = os.path.getsize(output_file)
+        assert 400 <= file_size <= 500, f"Expected file size around 421 bytes, got {file_size}"
+
+        print("✅ 416 error fix with larger local file test passed")
+
+    except Exception as e:
+        # Restore original input function
+        builtins.input = original_input
+        raise e
+
+
+def test_416_error_fix_user_cancellation(test_dir):
+    """Test that download is cancelled when user declines deletion."""
+    print("\n=== Testing 416 error fix with user cancellation ===")
+
+    # Test URL for a small file (pyproject.toml)
+    url = "https://raw.githubusercontent.com/zjxszzzcb/just-cli/refs/heads/main/pyproject.toml"
+    output_file = str(test_dir / "pyproject.toml.test.cancel")
+
+    # Create a local file that's larger than the remote file
+    with open(output_file, 'wb') as f:
+        f.write(b'0' * 500)
+
+    # Verify the file was created with the correct size
+    assert os.path.exists(output_file)
+    assert os.path.getsize(output_file) == 500
+
+    # Mock the user input to decline deletion
+    original_input = input
+
+    def mock_input(prompt):
+        # Decline deletion for this test
+        if "Delete and re-download?" in prompt:
+            return 'n'
+        return original_input(prompt)
+
+    # Replace the input function
+    import builtins
+    builtins.input = mock_input
+
+    try:
+        # Attempt to download the file
+        success = download_with_resume(url, {}, output_file, verbose=True)
+
+        # Restore original input function
+        builtins.input = original_input
+
+        # Verify download failed (cancelled by user)
+        assert not success, "Download should have been cancelled by user"
+
+        # Check that the original file still exists and has the same size
+        assert os.path.exists(output_file), "Original file should still exist"
+        assert os.path.getsize(output_file) == 500, "Original file should have same size"
+
+        print("✅ 416 error fix with user cancellation test passed")
+
+    except Exception as e:
+        # Restore original input function
+        builtins.input = original_input
+        raise e
+
+
 def run_all_tests():
     """Run all download tests."""
     print("Running download tests...")
@@ -228,6 +332,8 @@ def run_all_tests():
         test_command_download_resume(test_dir, reference_file)
         test_download_with_custom_headers(test_dir)
         test_download_nonexistent_url(test_dir)
+        test_416_error_fix_larger_local_file(test_dir)
+        test_416_error_fix_user_cancellation(test_dir)
 
         print("\n🎉 All download tests passed!")
         return True
