@@ -4,8 +4,8 @@ import typer
 from typing_extensions import Annotated
 
 from just import just_cli, capture_exception, echo
-from just.core.system_probe import probe_and_initialize_config
-from just.utils.config_utils import ensure_config_dir, save_system_config, is_initialized
+from just.core.system_probe.system_probe import probe_and_initialize_config
+from just.config import ensure_config_dir_exists, save_system_config, is_initialized
 
 
 @just_cli.command(name="init")
@@ -32,7 +32,7 @@ def init_just(
     echo.info("Initializing JUST CLI environment...")
 
     # Ensure config directory exists
-    ensure_config_dir()
+    ensure_config_dir_exists()
 
     # Probe system information
     echo.info("Probing system information...")

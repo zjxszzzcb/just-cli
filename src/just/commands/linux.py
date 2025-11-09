@@ -9,8 +9,6 @@ from just.utils.file_utils import read_file_text
 from just.utils import confirm_action
 
 
-
-
 @just_cli.command(name="cat")
 @capture_exception
 def cat_file(

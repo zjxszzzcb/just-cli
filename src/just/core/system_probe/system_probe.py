@@ -3,18 +3,20 @@
 import platform
 import os
 import shutil
+
 from datetime import datetime, timezone
-from typing import Tuple, List, Dict
-from just.models.system_info import SystemInfo, PackageManager, ToolStatus, SystemConfig
+from typing import Tuple, List, Dict, Literal
+
+from just.core.system_probe.system_info import SystemInfo, PackageManager, ToolStatus, SystemConfig
 
 
-def get_arch() -> str:
+def get_arch() -> Literal["x86_64", "aarch64"]:
     """Normalize architecture name"""
     machine = platform.machine().lower()
     if machine in ("x86_64", "amd64"):
-        return "amd64"
+        return "x86_64"
     if machine in ("aarch64", "arm64"):
-        return "arm64"
+        return "aarch64"
     return machine
 
 
@@ -43,7 +45,44 @@ def get_platform_info() -> Tuple[str, str, str]:
         return "darwin", "macos", mac_ver[0]
 
     elif sys_name == "windows":
+        # Get more accurate Windows version
         win_ver = platform.version()  # e.g., '10.0.19045'
+        try:
+            import subprocess
+            # Use ver command to get Windows version
+            result = subprocess.run(["ver"], capture_output=True, text=True, shell=True, timeout=5, encoding='utf-8', errors='ignore')
+            if result.returncode == 0 and result.stdout:
+                # Extract version from output like "Microsoft Windows [Version 10.0.22621.2506]"
+                import re
+                match = re.search(r'\[.*?([\d\.]+)\]', result.stdout)
+                if match:
+                    full_ver = match.group(1)  # e.g., "10.0.22621.2506"
+                    # Determine if it's Windows 10 or 11 based on build number
+                    # Windows 11 typically starts with build 22000 or higher
+                    version_parts = full_ver.split(".")
+                    if len(version_parts) >= 3:
+                        try:
+                            build_number = int(version_parts[2])  # Get build number
+                            if build_number >= 22000:
+                                # Use "11" as distro_version for Windows 11
+                                return "windows", "windows", "11"
+                            else:
+                                # Use "10" as distro_version for Windows 10
+                                return "windows", "windows", "10"
+                        except ValueError:
+                            pass
+                    # If we can't determine build number, return simplified version
+                    # Extract major version from full version (first part before the dot)
+                    if "." in full_ver:
+                        major_ver = full_ver.split(".")[0]
+                        if major_ver == "10":
+                            # For Windows, major version 10 could be Windows 10 or 11
+                            # We'll use the build number approach or default to "10"
+                            return "windows", "windows", "10"
+                    return "windows", "windows", full_ver
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, ImportError, ValueError, IndexError):
+            pass
+        # Fallback to platform.version()
         return "windows", "windows", win_ver
 
     return sys_name, "unknown", "unknown"

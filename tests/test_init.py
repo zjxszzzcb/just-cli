@@ -10,9 +10,9 @@ from pathlib import Path
 # Add the src directory to the path so we can import just modules
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from just.models.system_info import SystemConfig, SystemInfo, PackageManager, ToolStatus
-from just.core.system_probe import probe_and_initialize_config
-from just.utils.config_utils import get_config_dir, ensure_config_dir, get_system_info_file, save_system_config, load_system_config, is_initialized
+from just.core.system_probe.system_info import SystemConfig, SystemInfo, PackageManager, ToolStatus
+from just.core.system_probe.system_probe import probe_and_initialize_config
+from just.config.utils import get_config_dir, ensure_config_dir_exists, save_system_config, load_system_config, is_initialized
 
 
 def test_data_models():
@@ -64,10 +64,10 @@ def test_config_utils():
     assert isinstance(config_dir, Path)
     assert str(config_dir).endswith(".just")
 
-    # Test getting system info file
-    system_info_file = get_system_info_file()
-    assert isinstance(system_info_file, Path)
-    assert str(system_info_file).endswith("system_info.json")
+    # Test checking initialization status
+    # Note: _get_system_info_file is private, so we test is_initialized instead
+    initialized = is_initialized()
+    assert isinstance(initialized, bool)
 
     print("✅ Config utilities test passed")
 
@@ -101,8 +101,8 @@ def test_save_load_config():
             return Path(temp_dir) / ".just"
 
         # Patch the function
-        import just.utils.config_utils
-        just.utils.config_utils.get_config_dir = mock_get_config_dir
+        from just.config import utils as just_config_utils
+        just_config_utils.get_config_dir = mock_get_config_dir
 
         try:
             # Create test data
@@ -136,7 +136,8 @@ def test_save_load_config():
 
         finally:
             # Restore the original function
-            just.utils.config_utils.get_config_dir = original_get_config_dir
+            from just.config import utils as just_config_utils
+            just_config_utils.get_config_dir = original_get_config_dir
 
     print("✅ Save/load configuration test passed")
 
