@@ -1,6 +1,8 @@
 import httpx
 import os
+from pathlib import Path
 from typing import Dict, Optional
+from urllib.parse import urlparse
 
 from just.utils.progress import progress_bar
 import just.utils.echo_utils as echo
@@ -111,8 +113,8 @@ def _extract_total_size_from_range_response(response: httpx.Response, verbose: b
 
 def download_with_resume(
     url: str,
-    headers: Dict[str, str],
-    output_file: str,
+    headers: Optional[Dict[str, str]] = None,
+    output_file: Optional[str] = None,
     chunk_size: int = 65536,
     verbose: bool = False
 ) -> bool:
@@ -120,12 +122,24 @@ def download_with_resume(
     Download file with resume support and unified progress bar.
 
     Args:
-        url: URL to download
-        headers: Custom headers
-        output_file: Output file path
-        chunk_size: Chunk size for downloading
-        verbose: Enable verbose logging
+        url: URL to download (required)
+        headers: Custom headers (optional, defaults to empty dict)
+        output_file: Output file path (optional, extracted from URL if not provided)
+        chunk_size: Chunk size for downloading (default: 65536)
+        verbose: Enable verbose logging (default: False)
     """
+    if headers is None:
+        headers = {}
+    
+    if output_file is None:
+        parsed_url = urlparse(url)
+        output_file = os.path.basename(parsed_url.path)
+        if not output_file:
+            output_file = "downloaded_file"
+    
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
     if verbose:
         echo.info(f"Starting download: {url}")
         echo.info(f"Output file: {output_file}")
