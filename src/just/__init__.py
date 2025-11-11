@@ -2,7 +2,7 @@ from typing_extensions import Annotated
 from typer import Option, Argument
 
 from just.cli import just_cli,capture_exception
-from just.core.config import JustConfig, load_env_config, update_env_config
+from just.core.config import JustConfig, load_env_config, update_env_config, get_cache_dir
 from just.core.installer import installer
 from just.utils import (
     SystemProbe,
@@ -10,6 +10,7 @@ from just.utils import (
     docstring,
     download_with_resume,
     echo,
+    extract,
     execute_commands
 )
 
@@ -25,6 +26,7 @@ __all__ = [
     "create_typer_app",
     "docstring",
     "echo",
+    "extract",
     "execute_commands",
     "config",
     "just_cli",

@@ -1,5 +1,6 @@
 import just.utils.echo_utils as echo
 
+from just.utils.archive import extract
 from just.utils.format_utils import docstring
 from just.utils.shell_utils import execute_command, execute_commands, split_command
 from just.utils.typer_utils import create_typer_app
@@ -13,6 +14,7 @@ __all__ = [
     "create_typer_app",
     "docstring",
     "echo",
+    "extract",
     "execute_command",
     "execute_commands",
     "split_command",
