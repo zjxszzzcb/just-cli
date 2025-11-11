@@ -1,7 +1,8 @@
 def installer(func):
     """
     Decorator to mark a function as an installer.
+    
+    Sets _is_just_installer attribute to True for runtime detection.
     """
-    # Mark the function as an installer
-    func._is_installer = True
+    func._is_just_installer = True
     return func

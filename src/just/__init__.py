@@ -3,7 +3,7 @@ from typer import Option, Argument
 
 from just.cli import just_cli,capture_exception
 from just.core.config import JustConfig, load_env_config, update_env_config, get_cache_dir
-from just.core.installer import installer
+from just.core.installer import installer, SimpleReleaseInstaller
 from just.utils import (
     SystemProbe,
     create_typer_app,
@@ -31,6 +31,7 @@ __all__ = [
     "config",
     "just_cli",
     "installer",
+    "SimpleReleaseInstaller",
     "load_env_config",
     "update_env_config",
     "system"

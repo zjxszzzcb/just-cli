@@ -1,4 +1,3 @@
-import ast
 import os
 import sys
 import importlib.util
@@ -33,47 +32,17 @@ class JustInstallerLocalSource(JustInstallerSource):
             return None
 
         try:
-            # Find the installer function name using AST
-            installer_func_name = self._find_installer_function_name(script_path)
+            # Load the module
+            spec = importlib.util.spec_from_file_location(f"installer_{package_info.name}", script_path)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[f"installer_{package_info.name}"] = module
+            spec.loader.exec_module(module)
 
-            if installer_func_name:
-                # Reuse existing module loading logic
-                spec = importlib.util.spec_from_file_location(f"installer_{package_info.name}", script_path)
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[f"installer_{package_info.name}"] = module
-                spec.loader.exec_module(module)
-
-                # Return the installer function if it exists
-                if hasattr(module, installer_func_name):
-                    return getattr(module, installer_func_name)
-
-            return None
-        except Exception:
-            return None
-
-    def _find_installer_function_name(self, script_path: str) -> Optional[str]:
-        """Find the installer function name using AST parsing."""
-        try:
-            with open(script_path, 'r', encoding='utf-8') as f:
-                source = f.read()
-
-            tree = ast.parse(source)
-
-            # Look for functions in the module
-            for node in ast.iter_child_nodes(tree):
-                if isinstance(node, ast.FunctionDef):
-                    # 1. Check for @installer decorator
-                    for decorator in node.decorator_list:
-                        if isinstance(decorator, ast.Name) and decorator.id == 'installer':
-                            return node.name
-
-                    # 2. Check for function named 'installer'
-                    if node.name == 'installer':
-                        return 'installer'
-
-                    # 3. Check for function named 'main' (backward compatibility)
-                    if node.name == 'main':
-                        return 'main'
+            # Find function with _is_just_installer attribute (set by @installer decorator)
+            for attr_name in dir(module):
+                attr = getattr(module, attr_name)
+                if callable(attr) and getattr(attr, '_is_just_installer', False):
+                    return attr
 
             return None
         except Exception:
