@@ -5,12 +5,26 @@ Test script for file_utils module functionality.
 
 import sys
 import tempfile
+import os
 from pathlib import Path
 
 # Add the src directory to the path so we can import just modules
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from just.utils.file_utils import mkdir, mv, rm, write_file
+from just.utils.file_utils import mkdir, mv, rm, write_file, symlink
+
+
+def can_create_symlinks():
+    """Check if the current user can create symbolic links."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        src = Path(temp_dir) / "test_src"
+        src.touch()
+        link = Path(temp_dir) / "test_link"
+        try:
+            os.symlink(src, link)
+            return True
+        except OSError:
+            return False
 
 
 def test_mkdir_single():
@@ -227,9 +241,86 @@ def test_rm_nested_directory():
     print("✅ rm nested directory test passed")
 
 
+def test_symlink_file():
+    """Test creating a symlink to a file."""
+    print("Testing symlink with file...")
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        src_file = Path(temp_dir) / "source.txt"
+        link_file = Path(temp_dir) / "link.txt"
+        
+        # Create source file
+        write_file(str(src_file), "test content")
+        
+        # Create symlink
+        symlink(str(src_file), str(link_file))
+        
+        # Verify symlink exists and points to correct file
+        assert link_file.exists()
+        assert link_file.is_symlink()
+        assert link_file.read_text() == "test content"
+        assert link_file.resolve() == src_file.resolve()
+    
+    print("✅ symlink file test passed")
+
+
+def test_symlink_directory():
+    """Test creating a symlink to a directory."""
+    print("Testing symlink with directory...")
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        src_dir = Path(temp_dir) / "source_dir"
+        link_dir = Path(temp_dir) / "link_dir"
+        
+        # Create source directory with a file
+        src_dir.mkdir()
+        test_file = src_dir / "test.txt"
+        write_file(str(test_file), "test content")
+        
+        # Create symlink
+        symlink(str(src_dir), str(link_dir))
+        
+        # Verify symlink exists and points to correct directory
+        assert link_dir.exists()
+        assert link_dir.is_symlink()
+        assert (link_dir / "test.txt").exists()
+        assert (link_dir / "test.txt").read_text() == "test content"
+        assert link_dir.resolve() == src_dir.resolve()
+    
+    print("✅ symlink directory test passed")
+
+
+def test_symlink_relative_path():
+    """Test creating a symlink with relative paths."""
+    print("Testing symlink with relative paths...")
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        src_file = Path(temp_dir) / "source.txt"
+        link_file = Path(temp_dir) / "subdir" / "link.txt"
+        link_file.parent.mkdir()
+        
+        # Create source file
+        write_file(str(src_file), "test content")
+        
+        # Create symlink with absolute paths
+        symlink(str(src_file), str(link_file))
+        
+        # Verify symlink works
+        assert link_file.exists()
+        assert link_file.is_symlink()
+        assert link_file.read_text() == "test content"
+    
+    print("✅ symlink relative path test passed")
+
+
 def run_all_tests():
     """Run all tests."""
     print("Running file_utils tests...\n")
+    
+    # Check if symlinks can be created
+    symlink_support = can_create_symlinks()
+    if not symlink_support:
+        print("⚠️  Warning: Symlink creation not supported (requires admin privileges on Windows)")
     
     tests = [
         test_mkdir_single,
@@ -241,11 +332,20 @@ def run_all_tests():
         test_rm_single_file,
         test_rm_single_directory,
         test_rm_multiple_targets,
-        test_rm_nested_directory
+        test_rm_nested_directory,
     ]
+    
+    # Only add symlink tests if supported
+    if symlink_support:
+        tests.extend([
+            test_symlink_file,
+            test_symlink_directory,
+            test_symlink_relative_path
+        ])
     
     passed = 0
     failed = 0
+    skipped = 0 if symlink_support else 3
     
     for test in tests:
         try:
@@ -257,7 +357,10 @@ def run_all_tests():
             traceback.print_exc()
             failed += 1
     
-    print(f"\nResults: {passed} passed, {failed} failed")
+    if skipped > 0:
+        print(f"\nResults: {passed} passed, {failed} failed, {skipped} skipped")
+    else:
+        print(f"\nResults: {passed} passed, {failed} failed")
     return failed == 0
 
 

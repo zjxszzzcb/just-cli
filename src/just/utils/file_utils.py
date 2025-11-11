@@ -153,5 +153,32 @@ def rm(*targets: str):
             target_path.unlink()
 
 
+def symlink(src: str, dst: str):
+    """Create a symbolic link pointing to src named dst.
+    
+    Automatically detects whether the source is a file or directory
+    and creates the appropriate type of symlink.
+    
+    Args:
+        src: Source file or directory path (link target).
+        dst: Destination symlink path (link name).
+    
+    Raises:
+        FileNotFoundError: If source does not exist.
+        FileExistsError: If destination already exists.
+        OSError: If symlink creation fails.
+    
+    Examples:
+        Create a symlink to a file:
+        >>> symlink("/path/to/file.txt", "/path/to/link.txt")
+        
+        Create a symlink to a directory:
+        >>> symlink("/path/to/directory", "/path/to/link_dir")
+    """
+    src_path = Path(src)
+    target_is_directory = src_path.is_dir()
+    os.symlink(src, dst, target_is_directory=target_is_directory)
+
+
 if __name__ == "__main__":
     print(read_file_text(__file__, with_line_numbers=True))
