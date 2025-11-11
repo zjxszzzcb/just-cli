@@ -1,35 +1,17 @@
-import shutil
 import typer
 from pathlib import Path
 from typing import Optional
 
-from just import Annotated, just_cli, capture_exception, system
-from just.utils import echo, execute_command
-from just.utils.zip_utils import extract_zip
-from just.utils.tar_utils import extract_tar
-
-
-def detect_archive_type(archive_path: str) -> Optional[str]:
-    """
-    Detect archive type based on file extension.
-    
-    Returns:
-        'zip', 'tar', or None if unknown
-    """
-    path = Path(archive_path)
-    suffixes = ''.join(path.suffixes).lower()
-    
-    if '.zip' in suffixes:
-        return 'zip'
-    elif any(ext in suffixes for ext in ['.tar', '.tgz', '.tar.gz', '.tar.xz', '.tar.bz2', '.tar.zst', '.txz', '.tbz', '.tbz2', '.tzst']):
-        return 'tar'
-    
-    return None
+from just import Annotated, just_cli, capture_exception
+from just.utils import echo
+from just.utils.archive import extract as archive_extract, detect_archive_format, ArchiveFormat
 
 
 def get_default_output_dir(archive_path: str) -> str:
     """
-    Get default output directory from archive filename (removes all extensions).
+    Get default output directory from archive filename.
+    
+    Simply removes all extensions by taking everything before the first dot.
     
     Args:
         archive_path: Path to the archive file
@@ -37,88 +19,7 @@ def get_default_output_dir(archive_path: str) -> str:
     Returns:
         Directory name without extensions
     """
-    path = Path(archive_path)
-    name = path.name
-    
-    if name.endswith('.tar.gz'):
-        name = name[:-7]
-    elif name.endswith('.tar.xz'):
-        name = name[:-7]
-    elif name.endswith('.tar.bz2'):
-        name = name[:-8]
-    elif name.endswith('.tar.zst'):
-        name = name[:-8]
-    elif name.endswith('.tgz'):
-        name = name[:-4]
-    elif name.endswith('.txz'):
-        name = name[:-4]
-    elif name.endswith('.tbz') or name.endswith('.tbz2'):
-        name = name[:-4] if name.endswith('.tbz') else name[:-5]
-    elif name.endswith('.tzst'):
-        name = name[:-5]
-    else:
-        name = path.stem
-    
-    return str(path.parent / name)
-
-
-def extract_with_system_tool(archive_path: str, output_dir: Optional[str] = None) -> bool:
-    """
-    Try to extract using system tools (unzip, tar).
-    
-    Returns:
-        True if successful, False if system tool not available or failed
-    """
-    archive_type = detect_archive_type(archive_path)
-    
-    if archive_type == 'zip':
-        if shutil.which('unzip'):
-            echo.info("Using system unzip tool...")
-            if output_dir:
-                cmd = f'unzip -q "{archive_path}" -d "{output_dir}"'
-            else:
-                cmd = f'unzip -q "{archive_path}"'
-            
-            exit_code, _ = execute_command(cmd, capture_output=True, verbose=False)
-            if exit_code == 0:
-                echo.info(f"Extracted {archive_path}" + (f" to {output_dir}" if output_dir else ""))
-                return True
-                
-    elif archive_type == 'tar':
-        if shutil.which('tar'):
-            echo.info("Using system tar tool...")
-            if output_dir:
-                Path(output_dir).mkdir(parents=True, exist_ok=True)
-                cmd = f'tar -xf "{archive_path}" -C "{output_dir}"'
-            else:
-                cmd = f'tar -xf "{archive_path}"'
-            
-            exit_code, _ = execute_command(cmd, capture_output=True, verbose=False)
-            if exit_code == 0:
-                echo.info(f"Extracted {archive_path}" + (f" to {output_dir}" if output_dir else ""))
-                return True
-    
-    return False
-
-
-def extract_with_python(archive_path: str, output_dir: Optional[str] = None) -> bool:
-    """
-    Extract using Python built-in libraries.
-    
-    Returns:
-        True if successful, False otherwise
-    """
-    archive_type = detect_archive_type(archive_path)
-    
-    if archive_type == 'zip':
-        echo.info("Using Python zipfile library...")
-        return extract_zip(archive_path, output_dir)
-    elif archive_type == 'tar':
-        echo.info("Using Python tarfile library...")
-        return extract_tar(archive_path, output_dir)
-    else:
-        echo.error(f"Unsupported archive format: {archive_path}")
-        return False
+    return archive_path.split(".")[0]
 
 
 @just_cli.command(name="extract")
@@ -133,16 +34,23 @@ def extract_command(
     )] = None
 ) -> None:
     """
-    Extract archive files (zip, tar, tar.gz, tgz, tar.xz, tar.zst).
+    Extract archive and compressed files with automatic format detection.
     
-    By default, extracts to a directory with the same name as the archive (without extension).
-    Automatically detects archive format and uses system tools (unzip, tar) when available,
-    falling back to Python implementation if needed.
+    Supports: ZIP, TAR (with gz/bz2/xz/zst compression), GZIP, BZIP2, XZ, ZSTD, 7Z
+    
+    Automatically detects format using magic bytes (file signatures) for reliable
+    identification, even with incorrect file extensions. Extracts to a directory
+    named after the archive by default.
+    
+    Optional dependencies:
+    - 7Z support: pip install py7zr
+    - ZSTD support: pip install zstandard
     
     Examples:
         just extract archive.zip          # Extracts to ./archive/
         just extract archive.tar.gz       # Extracts to ./archive/
-        just extract archive.tar.zst -o extracted/
+        just extract file.gz              # Extracts to ./file
+        just extract data.7z -o out/      # Extracts to ./out/
     """
     archive_path = Path(archive)
     
@@ -150,18 +58,19 @@ def extract_command(
         echo.error(f"Archive not found: {archive}")
         raise typer.Exit(1)
     
-    archive_type = detect_archive_type(str(archive_path))
-    if not archive_type:
-        echo.error(f"Unknown archive format: {archive}")
+    fmt = detect_archive_format(str(archive_path))
+    
+    if fmt == ArchiveFormat.UNKNOWN:
+        echo.error(f"Unknown or unsupported archive format: {archive}")
+        raise typer.Exit(1)
+    
+    if fmt == ArchiveFormat.RAR:
+        echo.error("RAR format detected but not supported")
+        echo.info("RAR is a proprietary format. Install rarfile: pip install rarfile")
         raise typer.Exit(1)
     
     if output is None:
         output = get_default_output_dir(str(archive_path))
     
-    if extract_with_system_tool(str(archive_path), output):
-        return
-    
-    echo.warning("System tool not available or failed, using Python implementation...")
-    
-    if not extract_with_python(str(archive_path), output):
+    if not archive_extract(str(archive_path), output):
         raise Exception("Failed to extract archive")

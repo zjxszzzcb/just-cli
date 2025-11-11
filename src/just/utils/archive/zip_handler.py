@@ -7,7 +7,7 @@ import just.utils.echo_utils as echo
 
 def extract_zip(archive_path: str, output_dir: Optional[str] = None) -> bool:
     """
-    Extract a zip archive to the specified directory.
+    Extract a zip archive.
     
     Args:
         archive_path: Path to the zip archive
@@ -41,12 +41,12 @@ def extract_zip(archive_path: str, output_dir: Optional[str] = None) -> bool:
 
 def create_zip(archive_path: str, source_paths: list[str], base_dir: Optional[str] = None) -> bool:
     """
-    Create a zip archive from the specified files/directories.
+    Create a zip archive.
     
     Args:
         archive_path: Path for the output zip archive
-        source_paths: List of files/directories to add to the archive
-        base_dir: Base directory for relative paths. If None, uses absolute paths
+        source_paths: List of files/directories to add
+        base_dir: Base directory for relative paths
         
     Returns:
         True if successful, False otherwise

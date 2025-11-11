@@ -5,42 +5,16 @@ from typing import Optional
 import just.utils.echo_utils as echo
 
 
-def detect_tar_compression(archive_path: str) -> Optional[str]:
+def extract_tar(archive_path: str, output_dir: Optional[str] = None, compression: Optional[str] = None) -> bool:
     """
-    Detect the compression type of a tar archive based on file extension.
-    
-    Args:
-        archive_path: Path to the tar archive
-        
-    Returns:
-        Compression mode string or None if uncompressed
-    """
-    path = Path(archive_path)
-    suffixes = ''.join(path.suffixes).lower()
-    
-    if '.tar.gz' in suffixes or '.tgz' in suffixes:
-        return 'gz'
-    elif '.tar.xz' in suffixes or '.txz' in suffixes:
-        return 'xz'
-    elif '.tar.bz2' in suffixes or '.tbz' in suffixes or '.tbz2' in suffixes:
-        return 'bz2'
-    elif '.tar.zst' in suffixes or '.tzst' in suffixes:
-        return 'zst'
-    elif '.tar' in suffixes:
-        return None
-    else:
-        return None
-
-
-def extract_tar(archive_path: str, output_dir: Optional[str] = None) -> bool:
-    """
-    Extract a tar archive (with various compression formats) to the specified directory.
+    Extract a tar archive (with various compression formats).
     
     Supports: .tar, .tar.gz, .tgz, .tar.xz, .tar.bz2, .tar.zst
     
     Args:
         archive_path: Path to the tar archive
         output_dir: Directory to extract to. If None, extracts to current directory
+        compression: Compression type ('gz', 'xz', 'bz2', 'zst', or None for uncompressed)
         
     Returns:
         True if successful, False otherwise
@@ -57,8 +31,6 @@ def extract_tar(archive_path: str, output_dir: Optional[str] = None) -> bool:
             output_dir = Path(output_dir)
             
         output_dir.mkdir(parents=True, exist_ok=True)
-        
-        compression = detect_tar_compression(str(archive_path))
         
         if compression == 'zst':
             try:
@@ -91,13 +63,13 @@ def create_tar(
     base_dir: Optional[str] = None
 ) -> bool:
     """
-    Create a tar archive from the specified files/directories.
+    Create a tar archive.
     
     Args:
         archive_path: Path for the output tar archive
-        source_paths: List of files/directories to add to the archive
-        compression: Compression type ('gz', 'xz', 'bz2', 'zst', or None for no compression)
-        base_dir: Base directory for relative paths. If None, uses absolute paths
+        source_paths: List of files/directories to add
+        compression: Compression type ('gz', 'xz', 'bz2', 'zst', or None)
+        base_dir: Base directory for relative paths
         
     Returns:
         True if successful, False otherwise
@@ -108,9 +80,6 @@ def create_tar(
         
         if base_dir:
             base_dir = Path(base_dir)
-        
-        if compression is None:
-            compression = detect_tar_compression(str(archive_path))
         
         if compression == 'zst':
             try:
