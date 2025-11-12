@@ -50,15 +50,15 @@ def error(*args, sep: str = ' ', end: str = '\n'):
 
 
 def critical(*args, sep: str = ' ', end: str = '\n'):
-    red(f"[CRITICAL] {to_string(*args, sep=sep, end=end)}", end='')
+    typer.secho(f"[CRITICAL] {to_string(*args, sep=sep, end=end)}", fg=typer.colors.BRIGHT_RED, bold=True, nl=False)
 
 
 def success(*args, sep: str = ' ', end: str = '\n'):
     green(f"[SUCCESS] {to_string(*args, sep=sep, end=end)}", end='')
 
-
+    
 def fail(*args, sep: str = ' ', end: str = '\n'):
-    red(f"[FAIL] {to_string(*args, sep=sep, end=end)}", end='')
+    typer.secho(f"[FAIL] {to_string(*args, sep=sep, end=end)}", fg=typer.colors.BRIGHT_RED, bold=True, nl=False)
 
 
 def markdown(*args, sep: str = ' ', end: str = '\n'):

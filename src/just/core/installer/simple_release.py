@@ -58,39 +58,33 @@ class SimpleReleaseInstaller:
         # Determine extraction directory name (remove common archive extensions)
         self.extract_dirname = self._get_extract_dirname(self.archive_filename)
         
-    def run(self) -> bool:
+    def run(self) -> None:
         """
         Execute installation: download, extract, symlink.
         
-        Returns:
-            True if successful, False otherwise
+        Raises:
+            Exception: If any step fails
         """
         # 1. Download
-        if not self._download():
-            return False
+        self._download()
 
         # 2. Extract
-        if not self._extract():
-            return False
+        self._extract()
 
         # 3. Find executables
         executables = self._find_executables()
         if not executables:
-            echo.error("No executables found")
-            return False
+            raise Exception("No executables found in archive")
 
         # 4. Create symlinks
-        if not self._create_symlinks(executables):
-            return False
+        self._create_symlinks(executables)
 
         # 5. Check PATH and warn if needed
         self._check_path()
 
         echo.success(f"Installation completed successfully!")
-
-        return True
     
-    def _download(self) -> bool:
+    def _download(self) -> None:
         """Download archive to downloads directory."""
         echo.info(f"Downloading from {self.url}")
         
@@ -103,18 +97,16 @@ class SimpleReleaseInstaller:
         # Check if already downloaded
         if archive_path.exists():
             echo.info(f"Archive already exists: {archive_path}")
-            return True
+            return
         
-        success = download_with_resume(
+        download_with_resume(
             url=self.url,
             headers=self.headers,
             output_file=str(archive_path),
             verbose=False
         )
-        
-        return success
     
-    def _extract(self) -> bool:
+    def _extract(self):
         """Extract archive to installed directory."""
         archive_path = self.downloads_dir / self.archive_filename
         extract_path = self.installed_dir / self.extract_dirname
@@ -122,7 +114,7 @@ class SimpleReleaseInstaller:
         # Check if already extracted
         if extract_path.exists():
             echo.info(f"Already extracted: {extract_path}")
-            return True
+            return
         
         echo.info(f"Extracting {self.archive_filename}")
         
@@ -130,13 +122,8 @@ class SimpleReleaseInstaller:
         mkdir(str(self.installed_dir))
         
         # Extract archive
-        success = extract(str(archive_path), str(extract_path))
-        
-        if not success:
-            echo.error("Extraction failed")
-            return False
-        
-        return True
+        if not extract(str(archive_path), str(extract_path)):
+            raise Exception("Extraction failed")
     
     def _find_executables(self) -> List[str]:
         """Find executable files in extracted directory."""
@@ -208,15 +195,12 @@ class SimpleReleaseInstaller:
         # Windows: check for .exe, .bat, .cmd extensions
         if os.name == 'nt':
             return file_path.suffix.lower() in ['.exe', '.bat', '.cmd', '.ps1']
+        
         # Unix: check for executable permission
-        try:
-            file_stat = file_path.stat()
-            return bool(file_stat.st_mode & stat.S_IXUSR)
-        except Exception as e:
-            echo.error(f"Error checking file permissions: {e}")
-            return False
+        file_stat = file_path.stat()
+        return bool(file_stat.st_mode & stat.S_IXUSR)
     
-    def _create_symlinks(self, executables: List[str]) -> bool:
+    def _create_symlinks(self, executables: List[str]):
         """Create symlinks/wrapper scripts in ~/.just/bin/ for executables."""
         echo.info(f"Creating symlinks in {self.bin_dir}")
         
@@ -228,16 +212,12 @@ class SimpleReleaseInstaller:
             
             if os.name == 'nt':
                 # Windows: Create wrapper batch script instead of symlink
-                if not self._create_windows_wrapper(exe_path, exe_name):
-                    return False
+                self._create_windows_wrapper(exe_path, exe_name)
             else:
                 # Unix: Create symlink
-                if not self._create_unix_symlink(exe_path, exe_name):
-                    return False
-        
-        return True
+                self._create_unix_symlink(exe_path, exe_name)
     
-    def _create_unix_symlink(self, exe_path: str, exe_name: str) -> bool:
+    def _create_unix_symlink(self, exe_path: str, exe_name: str):
         """Create symlink on Unix systems."""
         link_path = self.bin_dir / exe_name
         
@@ -247,15 +227,10 @@ class SimpleReleaseInstaller:
             link_path.unlink()
         
         # Create symlink
-        try:
-            symlink(exe_path, str(link_path))
-            echo.info(f"Created symlink: {exe_name} -> {exe_path}")
-            return True
-        except Exception as e:
-            echo.error(f"Failed to create symlink for {exe_name}: {e}")
-            return False
+        symlink(exe_path, str(link_path))
+        echo.info(f"Created symlink: {exe_name} -> {exe_path}")
     
-    def _create_windows_wrapper(self, exe_path: str, exe_name: str) -> bool:
+    def _create_windows_wrapper(self, exe_path: str, exe_name: str):
         """Create wrapper batch script on Windows."""
         # Remove .exe extension if present for wrapper name
         wrapper_name = exe_name.replace('.exe', '')
@@ -275,12 +250,10 @@ class SimpleReleaseInstaller:
                 f.write(wrapper_content)
             
             echo.info(f"Created wrapper script: {wrapper_name}.bat -> {exe_path}")
-            return True
         except Exception as e:
-            echo.error(f"Failed to create wrapper for {exe_name}: {e}")
-            return False
+            raise RuntimeError(f"Failed to create wrapper for {exe_name}: {e}")
     
-    def _check_path(self) -> None:
+    def _check_path(self):
         """Check if ~/.just/bin is in PATH and warn if not."""
         path_env = os.environ.get("PATH", "")
         bin_dir_str = str(self.bin_dir.resolve())

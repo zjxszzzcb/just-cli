@@ -13,7 +13,7 @@ def install_edit(
     """
     if just.system.platform == "windows":
         just.SimpleReleaseInstaller(
-            url = f"https://github.com/microsoft/eit/releases/download/v{version}/edit-{version}-{just.system.arch}-windows.zip",
+            url = f"https://github.com/microsoft/edit/releases/download/v{version}/edit-{version}-{just.system.arch}-windows.zip",
             executables=["edit.exe"]
         ).run()
     elif just.system.platform == "linux":

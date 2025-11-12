@@ -2,7 +2,7 @@ import typer
 from typing import List, Optional
 from typing_extensions import Annotated
 
-from just import just_cli
+from just import just_cli, echo
 from just.core.installer.install_package import install_package
 from just.utils.typer_utils import show_help
 
@@ -28,7 +28,7 @@ def install(
     try:
         install_package(package_name, args)
     except Exception as e:
-        print(f"Error installing {package_name}: {e}")
+        echo.fail(f"Error installing {package_name}: {e}")
         raise typer.Exit(1)
 
 

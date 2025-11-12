@@ -8,6 +8,37 @@ from just.utils.progress import progress_bar
 import just.utils.echo_utils as echo
 
 
+# Custom Exception Classes
+class DownloadError(Exception):
+    """Base exception for download errors."""
+    pass
+
+
+class NetworkError(DownloadError):
+    """Raised when network-related errors occur during download."""
+    pass
+
+
+class FileSystemError(DownloadError):
+    """Raised when file system operations fail during download."""
+    pass
+
+
+class InvalidResponseError(DownloadError):
+    """Raised when server response is invalid or unexpected."""
+    pass
+
+
+class FileSizeMismatchError(DownloadError):
+    """Raised when local file size doesn't match expected size."""
+    pass
+
+
+class DownloadCancelledError(DownloadError):
+    """Raised when user cancels the download."""
+    pass
+
+
 def _download_formatter(completed, total, _elapsed, _unit, speed=None, _eta=None, _percentage=None):
     """Formatter function for download progress with file sizes and speed."""
 
@@ -49,6 +80,9 @@ def _get_total_file_size(url: str, headers: Dict[str, str], verbose: bool = Fals
 
     Returns:
         Total file size in bytes, or 0 if unable to determine
+        
+    Raises:
+        NetworkError: If network request fails
     """
     try:
         if verbose:
@@ -72,9 +106,11 @@ def _get_total_file_size(url: str, headers: Dict[str, str], verbose: bool = Fals
             total_size = _extract_total_size_from_range_response(range_response, verbose)
 
         return total_size
-    except Exception as e:
+    except httpx.RequestError as e:
+        raise NetworkError(f"Failed to get total file size due to network error: {e}") from e
+    except (ValueError, KeyError) as e:
         if verbose:
-            echo.info(f"Failed to get total file size: {e}")
+            echo.info(f"Failed to parse content-length: {e}")
         return 0
 
 
@@ -127,6 +163,13 @@ def download_with_resume(
         output_file: Output file path (optional, extracted from URL if not provided)
         chunk_size: Chunk size for downloading (default: 65536)
         verbose: Enable verbose logging (default: False)
+        
+    Raises:
+        NetworkError: When network-related errors occur
+        FileSystemError: When file system operations fail
+        InvalidResponseError: When server response is invalid
+        DownloadCancelledError: When user cancels the download
+        DownloadError: For other unexpected errors
     """
     if headers is None:
         headers = {}
@@ -138,7 +181,10 @@ def download_with_resume(
             output_file = "downloaded_file"
     
     output_path = Path(output_file)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise FileSystemError(f"Failed to create output directory: {e}") from e
     
     if verbose:
         echo.info(f"Starting download: {url}")
@@ -152,9 +198,8 @@ def download_with_resume(
     if os.path.exists(temp_file):
         try:
             os.remove(temp_file)
-        except Exception as e:
-            if verbose:
-                echo.info(f"Failed to remove existing temp file: {e}")
+        except OSError as e:
+            raise FileSystemError(f"Failed to remove existing temp file: {e}") from e
 
     # Check if file already exists for resuming
     if os.path.exists(output_file):
@@ -177,12 +222,14 @@ def download_with_resume(
             # Import confirm_action here to avoid circular imports
             from just.utils.user_interaction import confirm_action
             if confirm_action(f"Local file ({existing_file_size} bytes) is larger than or equal to remote file ({total_size} bytes). Delete and re-download?"):
-                os.remove(output_file)
+                try:
+                    os.remove(output_file)
+                except OSError as e:
+                    raise FileSystemError(f"Failed to delete existing file: {e}") from e
                 first_byte = 0
                 mode = "wb"
             else:
-                echo.info("Download cancelled by user.")
-                return False
+                raise DownloadCancelledError("Download cancelled by user")
         else:
             # File exists but is not complete, resume download
             first_byte = existing_file_size
@@ -211,12 +258,14 @@ def download_with_resume(
             # Import confirm_action here to avoid circular imports
             from just.utils.user_interaction import confirm_action
             if confirm_action(f"Temporary file ({first_byte} bytes) is larger than or equal to remote file ({total_size} bytes). Delete and re-download?"):
-                os.remove(temp_file)
+                try:
+                    os.remove(temp_file)
+                except OSError as e:
+                    raise FileSystemError(f"Failed to delete temporary file: {e}") from e
                 first_byte = 0
                 mode = "wb"
             else:
-                echo.info("Download cancelled by user.")
-                return False
+                raise DownloadCancelledError("Download cancelled by user")
     else:
         # Fresh download
         first_byte = 0
@@ -279,48 +328,64 @@ def download_with_resume(
 
             # Validate total size
             if total_size is None:
-                echo.error(f"HTTP {response.status_code}: {response.text}")
-                return False
+                raise InvalidResponseError(f"Invalid server response: HTTP {response.status_code}")
 
             # Download file with resume support to temporary file
             success = _download_stream(response, temp_file, total_size, mode, first_byte, chunk_size, verbose)
 
             # If download is successful, rename temporary file to final name
             if success:
-                if mode == "ab" and first_byte > 0:
-                    # For resumed downloads, append the new content to existing file
-                    if os.path.exists(output_file):
-                        # Append temp file content to existing file
-                        with open(temp_file, 'rb') as src, open(output_file, 'ab') as dst:
-                            while True:
-                                chunk = src.read(chunk_size)
-                                if not chunk:
-                                    break
-                                dst.write(chunk)
-                        # Remove temporary file
-                        os.remove(temp_file)
+                try:
+                    if mode == "ab" and first_byte > 0:
+                        # For resumed downloads, append the new content to existing file
+                        if os.path.exists(output_file):
+                            # Append temp file content to existing file
+                            with open(temp_file, 'rb') as src, open(output_file, 'ab') as dst:
+                                while True:
+                                    chunk = src.read(chunk_size)
+                                    if not chunk:
+                                        break
+                                    dst.write(chunk)
+                            # Remove temporary file
+                            os.remove(temp_file)
+                        else:
+                            # Rename temp file to final name
+                            os.rename(temp_file, output_file)
                     else:
-                        # Rename temp file to final name
+                        # For fresh downloads, simply rename temp file to final name
                         os.rename(temp_file, output_file)
-                else:
-                    # For fresh downloads, simply rename temp file to final name
-                    os.rename(temp_file, output_file)
-                echo.info(f"Download completed and renamed to: {output_file}")
+                    echo.info(f"Download completed and renamed to: {output_file}")
+                except OSError as e:
+                    raise FileSystemError(f"Failed to finalize downloaded file: {e}") from e
 
             return success
 
-    except Exception as e:
-        echo.error(f"Download failed: {str(e)}")
+    except httpx.HTTPStatusError as e:
+        raise NetworkError(f"HTTP error occurred: {e.response.status_code} {e.response.reason_phrase}") from e
+    except httpx.RequestError as e:
+        raise NetworkError(f"Network error occurred: {e}") from e
+    except (DownloadError, FileSystemError, NetworkError, InvalidResponseError, DownloadCancelledError):
+        # Re-raise our custom exceptions
         # Clean up temporary file on failure
         if os.path.exists(temp_file):
             try:
                 os.remove(temp_file)
                 if verbose:
                     echo.info(f"Cleaned up temporary file: {temp_file}")
-            except Exception as cleanup_error:
+            except OSError:
+                pass
+        raise
+    except Exception as e:
+        # Wrap unexpected exceptions
+        # Clean up temporary file on failure
+        if os.path.exists(temp_file):
+            try:
+                os.remove(temp_file)
                 if verbose:
-                    echo.info(f"Failed to clean up temporary file: {cleanup_error}")
-        return False
+                    echo.info(f"Cleaned up temporary file: {temp_file}")
+            except OSError:
+                pass
+        raise DownloadError(f"Unexpected error during download: {e}") from e
 
 
 def _handle_server_no_range_support(
@@ -435,6 +500,10 @@ def _download_stream(
         first_byte: Starting byte position
         chunk_size: Chunk size for downloading
         verbose: Enable verbose logging
+        
+    Raises:
+        FileSystemError: When file write operations fail
+        DownloadError: When download fails
     """
     if verbose:
         echo.info(
@@ -467,28 +536,33 @@ def _download_stream(
         "progress_desc_formatter": _download_formatter
     }
 
-    with open(output_file, mode) as f:
-        with progress_bar(**progress_kwargs) as pbar:
-            # Update progress for already downloaded bytes
-            pbar.n = first_byte
-            pbar.refresh()  # Force refresh to show correct initial position
-            if verbose:
-                echo.info(
-                    f"Progress bar initialized with n={first_byte}"
-                )
+    try:
+        with open(output_file, mode) as f:
+            with progress_bar(**progress_kwargs) as pbar:
+                # Update progress for already downloaded bytes
+                pbar.n = first_byte
+                pbar.refresh()  # Force refresh to show correct initial position
+                if verbose:
+                    echo.info(
+                        f"Progress bar initialized with n={first_byte}"
+                    )
 
-            for i, chunk in enumerate(response.iter_bytes(chunk_size=chunk_size)):
-                if chunk:
-                    f.write(chunk)
-                    bytes_written += len(chunk)
-                    pbar.update(len(chunk))
+                for i, chunk in enumerate(response.iter_bytes(chunk_size=chunk_size)):
+                    if chunk:
+                        f.write(chunk)
+                        bytes_written += len(chunk)
+                        pbar.update(len(chunk))
 
-                    if verbose and (i % 10 == 0 or len(chunk) < chunk_size):
-                        # Log every 10 chunks or last chunk
-                        echo.info(
-                            f"Chunk {i}: wrote {len(chunk)} bytes, "
-                            f"total written: {bytes_written}"
-                        )
+                        if verbose and (i % 10 == 0 or len(chunk) < chunk_size):
+                            # Log every 10 chunks or last chunk
+                            echo.info(
+                                f"Chunk {i}: wrote {len(chunk)} bytes, "
+                                f"total written: {bytes_written}"
+                            )
+    except OSError as e:
+        raise FileSystemError(f"Failed to write to file {output_file}: {e}") from e
+    except Exception as e:
+        raise DownloadError(f"Error during file download: {e}") from e
 
     if verbose:
         echo.info(

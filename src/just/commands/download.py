@@ -2,8 +2,9 @@ import typer
 from typing import List, Optional, Dict
 from typing_extensions import Annotated
 
-from just import just_cli, capture_exception
+from just import just_cli, capture_exception, echo
 from just.utils import download_with_resume
+from just.utils.download_utils import DownloadError, NetworkError, FileSystemError, DownloadCancelledError
 
 
 def parse_headers(header_list: Optional[List[str]]) -> Optional[Dict[str, str]]:
@@ -46,10 +47,16 @@ def download_command(
     just download https://example.com/file.zip -H "Authorization: Bearer token" -H "User-Agent: MyApp/1.0"
     just download https://example.com/file.zip -o myfile.zip
     """
-    if not download_with_resume(
-        url=url,
-        headers=parse_headers(headers),
-        output_file=output,
-        verbose=verbose
-    ):
-        raise Exception("Download failed")
+    try:
+        download_with_resume(
+            url=url,
+            headers=parse_headers(headers),
+            output_file=output,
+            verbose=verbose
+        )
+    except DownloadCancelledError as e:
+        echo.info(str(e))
+        raise typer.Exit(1)
+    except (NetworkError, FileSystemError, DownloadError) as e:
+        echo.error(f"Download failed: {e}")
+        raise typer.Exit(1)
