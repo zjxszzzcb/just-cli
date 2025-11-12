@@ -65,36 +65,30 @@ class SimpleReleaseInstaller:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            # 1. Download
-            if not self._download():
-                return False
-            
-            # 2. Extract
-            if not self._extract():
-                return False
-            
-            # 3. Find executables
-            executables = self._find_executables()
-            if not executables:
-                echo.error("No executables found")
-                return False
-            
-            # 4. Create symlinks
-            if not self._create_symlinks(executables):
-                return False
-            
-            # 5. Check PATH and warn if needed
-            self._check_path()
-            
-            echo.success(f"Installation completed successfully!")
-            echo.info(f"Installed executables: {', '.join([Path(e).name for e in executables])}")
-            
-            return True
-            
-        except Exception as e:
-            echo.error(f"Installation failed: {e}")
+        # 1. Download
+        if not self._download():
             return False
+
+        # 2. Extract
+        if not self._extract():
+            return False
+
+        # 3. Find executables
+        executables = self._find_executables()
+        if not executables:
+            echo.error("No executables found")
+            return False
+
+        # 4. Create symlinks
+        if not self._create_symlinks(executables):
+            return False
+
+        # 5. Check PATH and warn if needed
+        self._check_path()
+
+        echo.success(f"Installation completed successfully!")
+
+        return True
     
     def _download(self) -> bool:
         """Download archive to downloads directory."""
@@ -118,11 +112,7 @@ class SimpleReleaseInstaller:
             verbose=False
         )
         
-        if not success:
-            echo.error("Download failed")
-            return False
-        
-        return True
+        return success
     
     def _extract(self) -> bool:
         """Extract archive to installed directory."""
@@ -211,18 +201,19 @@ class SimpleReleaseInstaller:
                 executables.append(str(file_path.resolve()))
         
         return executables
-    
-    def _is_executable(self, file_path: Path) -> bool:
+
+    @staticmethod
+    def _is_executable(file_path: Path) -> bool:
         """Check if file is executable."""
         # Windows: check for .exe, .bat, .cmd extensions
         if os.name == 'nt':
-            return file_path.suffix.lower() in ['.exe', '.bat', '.cmd']
-        
+            return file_path.suffix.lower() in ['.exe', '.bat', '.cmd', '.ps1']
         # Unix: check for executable permission
         try:
             file_stat = file_path.stat()
             return bool(file_stat.st_mode & stat.S_IXUSR)
-        except Exception:
+        except Exception as e:
+            echo.error(f"Error checking file permissions: {e}")
             return False
     
     def _create_symlinks(self, executables: List[str]) -> bool:
@@ -318,8 +309,9 @@ class SimpleReleaseInstaller:
                 echo.info(f'  export PATH="$HOME/.just/bin:$PATH"')
             
             echo.info("")
-    
-    def _get_extract_dirname(self, filename: str) -> str:
+
+    @staticmethod
+    def _get_extract_dirname(filename: str) -> str:
         """
         Get extraction directory name by removing archive extensions.
         
@@ -328,21 +320,4 @@ class SimpleReleaseInstaller:
             tool-1.0.0.zip -> tool-1.0.0
             archive.tar.bz2 -> archive
         """
-        # Remove common archive extensions
-        name = filename
-        extensions = [
-            '.tar.gz', '.tar.bz2', '.tar.xz', '.tar.zst',
-            '.tgz', '.tbz', '.tbz2', '.txz', '.tzst',
-            '.zip', '.7z', '.gz', '.bz2', '.xz', '.zst'
-        ]
-        
-        # Try multi-part extensions first (e.g., .tar.gz)
-        for ext in extensions:
-            if name.endswith(ext):
-                return name[:-len(ext)]
-        
-        # Fallback: remove last extension
-        if '.' in name:
-            return name.rsplit('.', 1)[0]
-        
-        return name
+        return filename.split('.', 1)[0]

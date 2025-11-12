@@ -11,20 +11,16 @@ def install_edit(
     """
     Install Microsoft Edit.
     """
-    url = f"https://github.com/microsoft/edit/releases/download/v{version}/edit-{version}-{just.system.arch}-windows.zip"
-    just.SimpleReleaseInstaller(url, executables=["edit.exe"]).run()
-    just.update_env_config(just.config.keys.JUST_EDIT_USE_TOOL, 'edit.exe')
-    # if just.system.pms.winget.is_available():
-    #     just.execute_commands("winget install Microsoft.Edit")
-    #     just.update_env_config(just.config.keys.JUST_EDIT_USE_TOOL, 'edit')
-    # elif just.system.pms.snap.is_available():
-    #     just.execute_commands("snap install msedit")
-    #     just.update_env_config(just.config.keys.JUST_EDIT_USE_TOOL, 'msedit')
-    # elif just.system.platform == "windows":
-    #     url = f"https://github.com/microsoft/edit/releases/download/v{version}/edit-{version}-{just.system.arch}-windows.zip"
-    #     just.SimpleReleaseInstaller(url, executables=["edit.exe"]).run()
-    #     just.update_env_config(just.config.keys.JUST_EDIT_USE_TOOL, 'edit.exe')
-    # elif just.system.platform == "linux":
-    #     url = f"https://github.com/microsoft/edit/releases/download/v{version}/edit-{version}-{just.system.arch}-linux-gnu.tar.zst"
-    #     just.SimpleReleaseInstaller(url, executables=["edit"]).run()
-    #     just.update_env_config(just.config.keys.JUST_EDIT_USE_TOOL, 'edit')
+    if just.system.platform == "windows":
+        just.SimpleReleaseInstaller(
+            url = f"https://github.com/microsoft/eit/releases/download/v{version}/edit-{version}-{just.system.arch}-windows.zip",
+            executables=["edit.exe"]
+        ).run()
+    elif just.system.platform == "linux":
+        url = f"https://github.com/microsoft/edit/releases/download/v{version}/edit-{version}-{just.system.arch}-linux-gnu.tar.zst"
+        just.SimpleReleaseInstaller(url, executables=["edit"]).run()
+    else:
+        raise NotImplementedError(f"Microsoft Edit is not supported on {just.system.platform}.")
+
+    if just.confirm_action("Set edit as your default editor?"):
+        just.update_env_config(just.config.keys.JUST_EDIT_USE_TOOL, 'edit')

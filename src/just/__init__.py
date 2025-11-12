@@ -7,6 +7,7 @@ from just.core.installer import installer, SimpleReleaseInstaller
 from just.utils import (
     SystemProbe,
     create_typer_app,
+    confirm_action,
     docstring,
     download_with_resume,
     echo,
