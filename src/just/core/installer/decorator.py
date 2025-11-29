@@ -1,8 +1,15 @@
-def installer(func):
+def installer(func=None, *, check=None):
     """
     Decorator to mark a function as an installer.
     
-    Sets _is_just_installer attribute to True for runtime detection.
+    Args:
+        check: Optional command to check if already installed.
     """
-    func._is_just_installer = True
-    return func
+    def _decorator(f):
+        f._is_just_installer = True
+        f._check_command = check
+        return f
+
+    if func is None:
+        return _decorator
+    return _decorator(func)

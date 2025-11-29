@@ -1,6 +1,6 @@
 import just
 
-@just.installer
+@just.installer(check="cloudflared --version")
 def install_cloudflare():
     """
     Install Cloudflare Tunnel client (cloudflared).

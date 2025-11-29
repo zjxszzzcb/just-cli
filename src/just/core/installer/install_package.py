@@ -34,7 +34,15 @@ def install_package(package_name: str, additional_args: Optional[List[str]] = No
         raise Exception(f"No installer script found for {package_name}")
 
     app = typer.Typer()
+    
+    # Check if already installed
+    check_cmd = getattr(installer, "_check_command", None)
+    if check_cmd:
+        from just.utils import execute_command, echo
+        exit_code, _ = execute_command(check_cmd, capture_output=True)
+        if exit_code == 0:
+            echo.success(f"{package_name} is already installed.")
+            return
+
     app.command()(installer)
     app(additional_args)
-
-
