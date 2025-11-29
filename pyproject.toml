@@ -1,5 +1,5 @@
 [project]
-name = "just"
+name = "just-cli"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -8,12 +8,13 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "dotenv>=0.9.9",
-    "py7zr>=1.0.0",
+    "httpx",
+    "python-dotenv",
+    "py7zr",
     "rich>=14.2.0",
     "textual>=6.4.0",
     "typer>=0.20.0",
-    "zstandard>=0.25.0",
+    "zstandard",
 ]
 
 [project.scripts]
@@ -22,3 +23,6 @@ just = "just.cli:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/just"]

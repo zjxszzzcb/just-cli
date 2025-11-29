@@ -2,8 +2,8 @@
 $Action = $args[0]
 
 # Set proxy variables from environment or use default
-$CB_HTTP_PROXY = if ($env:CB_HTTP_PROXY) { $env:CB_HTTP_PROXY } else { "http://127.0.0.1:7890" }
-$CB_HTTPS_PROXY = if ($env:CB_HTTPS_PROXY) { $env:CB_HTTPS_PROXY } else { $CB_HTTP_PROXY }
+$HTTP_PROXY_URL = if ($env:HTTP_PROXY_URL) { $env:HTTP_PROXY_URL } else { "http://127.0.0.1:7890" }
+$HTTPS_PROXY_URL = if ($env:HTTPS_PROXY_URL) { $env:HTTPS_PROXY_URL } else { $HTTP_PROXY_URL }
 
 function Show-Help {
     Write-Host ""
@@ -13,14 +13,14 @@ function Show-Help {
     Write-Host "  proxy.ps1 on     - Enable proxy"
     Write-Host "  proxy.ps1 off    - Disable proxy"
     Write-Host ""
-    Write-Host "Current HTTP_PROXY : $CB_HTTP_PROXY"
-    Write-Host "Current HTTPS_PROXY: $CB_HTTPS_PROXY"
+    Write-Host "Current HTTP_PROXY : $HTTP_PROXY_URL"
+    Write-Host "Current HTTPS_PROXY: $HTTPS_PROXY_URL"
     Write-Host "=========================================="
 }
 
 function Enable-Proxy {
-    $env:HTTP_PROXY = $CB_HTTP_PROXY
-    $env:HTTPS_PROXY = $CB_HTTPS_PROXY
+    $env:HTTP_PROXY = $HTTP_PROXY_URL
+    $env:HTTPS_PROXY = $HTTPS_PROXY_URL
     Write-Host "[ON]" -ForegroundColor Green -NoNewline
     Write-Host " HTTP  Proxy $env:HTTP_PROXY enabled in PowerShell"
     Write-Host "[ON]" -ForegroundColor Green -NoNewline

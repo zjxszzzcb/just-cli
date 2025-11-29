@@ -5,17 +5,17 @@
 # Or install to ~/.bashrc for permanent availability
 
 # Set proxy variables from environment or use default
-CB_HTTP_PROXY=${CB_HTTP_PROXY:-"http://127.0.0.1:7890"}
-CB_HTTPS_PROXY=${CB_HTTPS_PROXY:-$CB_HTTP_PROXY}
+HTTP_PROXY_URL=${HTTP_PROXY_URL:-"http://127.0.0.1:7890"}
+HTTPS_PROXY_URL=${HTTPS_PROXY_URL:-$HTTP_PROXY_URL}
 
 # Proxy control function
 proxy() {
     case "${1,,}" in
         on)
-            export HTTP_PROXY=$CB_HTTP_PROXY
-            export HTTPS_PROXY=$CB_HTTPS_PROXY
-            export http_proxy=$CB_HTTP_PROXY
-            export https_proxy=$CB_HTTPS_PROXY
+            export HTTP_PROXY=$HTTP_PROXY_URL
+            export HTTPS_PROXY=$HTTPS_PROXY_URL
+            export http_proxy=$HTTP_PROXY_URL
+            export https_proxy=$HTTPS_PROXY_URL
             echo -e "\033[32m[ON]\033[0m HTTP  Proxy $HTTP_PROXY enabled in Bash"
             echo -e "\033[32m[ON]\033[0m HTTPS Proxy $HTTPS_PROXY enabled in Bash"
             ;;
@@ -40,8 +40,8 @@ proxy() {
             echo "  proxy off        - Disable proxy"
             echo "  proxy uninstall  - Uninstall CLI"
             echo
-            echo "Current HTTP_PROXY : $CB_HTTP_PROXY"
-            echo "Current HTTPS_PROXY: $CB_HTTPS_PROXY"
+            echo "Current HTTP_PROXY : $HTTP_PROXY_URL"
+            echo "Current HTTPS_PROXY: $HTTPS_PROXY_URL"
             echo "=========================================="
             ;;
         install)
@@ -108,8 +108,8 @@ show_script_help() {
     echo "  bash proxy.sh install    - Install CLI"
     echo "  bash proxy.sh uninstall  - Uninstall CLI"
     echo
-    echo "Current HTTP_PROXY : $CB_HTTP_PROXY"
-    echo "Current HTTPS_PROXY: $CB_HTTPS_PROXY"
+    echo "Current HTTP_PROXY : $HTTP_PROXY_URL"
+    echo "Current HTTPS_PROXY: $HTTPS_PROXY_URL"
     echo "=========================================="
 }
 

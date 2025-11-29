@@ -4,10 +4,9 @@ import typer
 from pathlib import Path
 from typing_extensions import Annotated
 
-from just import just_cli, config, echo, capture_exception, update_env_config
+from just import just_cli, capture_exception
 from just.core.config import get_env_config_file
 from just.tui import FileEditor
-from just.utils import execute_command
 
 
 INTERNAL_FILES = {
@@ -35,21 +34,4 @@ def edit_file(
     if file_path.lower() in INTERNAL_FILES:
         file_path = INTERNAL_FILES[file_path.lower()]
 
-    if config.JUST_EDIT_USE_TOOL == 'unk':
-        option = input("Which editor would you like to use? [e]dit or [t]extual: ")
-        if option.lower() == 't':
-            echo.info(f'Set JUST_EDIT_USE_TOOL="textual"')
-            update_env_config("JUST_EDIT_USE_TOOL", "textual")
-            os.environ["JUST_EDIT_USE_TOOL"] = "textual"
-        else:
-            echo.info(f'Set JUST_EDIT_USE_TOOL="edit"')
-            update_env_config("JUST_EDIT_USE_TOOL", "edit")
-            os.environ["JUST_EDIT_USE_TOOL"] = "edit"
-
-    if config.JUST_EDIT_USE_TOOL == 'edit':
-        execute_command(f"edit {file_path}")
-    elif os.path.getsize(file_path) > 4096 * 1024:
-        echo.warning("File is too large for textual editor. Try to use microsoft edit instead.")
-        execute_command(f"edit {file_path}")
-    else:
-        edit_file_by_textual(file_path)
+    edit_file_by_textual(file_path)

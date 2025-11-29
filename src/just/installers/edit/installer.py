@@ -21,6 +21,3 @@ def install_edit(
         just.SimpleReleaseInstaller(url, executables=["edit"]).run()
     else:
         raise NotImplementedError(f"Microsoft Edit is not supported on {just.system.platform}.")
-
-    if just.confirm_action("Set edit as your default editor?"):
-        just.update_env_config(just.config.keys.JUST_EDIT_USE_TOOL, 'edit')

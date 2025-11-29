@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 from just.core.system_probe.system_info import SystemConfig, SystemInfo, PackageManager, ToolStatus
 from just.core.system_probe.system_probe import probe_and_initialize_config
-from just.config.utils import get_config_dir, ensure_config_dir_exists, save_system_config, load_system_config, is_initialized
+from just.core.config.utils import get_config_dir, ensure_config_dir_exists, save_system_config, load_system_config, is_initialized
 
 
 def test_data_models():
@@ -101,7 +101,7 @@ def test_save_load_config():
             return Path(temp_dir) / ".just"
 
         # Patch the function
-        from just.config import utils as just_config_utils
+        from just.core.config import utils as just_config_utils
         just_config_utils.get_config_dir = mock_get_config_dir
 
         try:
@@ -136,7 +136,7 @@ def test_save_load_config():
 
         finally:
             # Restore the original function
-            from just.config import utils as just_config_utils
+            from just.core.config import utils as just_config_utils
             just_config_utils.get_config_dir = original_get_config_dir
 
     print("✅ Save/load configuration test passed")
