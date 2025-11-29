@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from typing import List, Optional, Union
 from pathlib import Path
@@ -83,6 +84,100 @@ def write_file(file_path: str, content: Union[str, bytes], encoding: str = "utf-
     else:
         with open(file_path, "wb") as f:
             f.write(content)
+
+
+def mkdir(*dirs):
+    """Create one or more directories, including parent directories if needed.
+    
+    Args:
+        *dirs: directory paths.
+    
+    Raises:
+        OSError: If directory creation fails.
+    
+    Examples:
+        Create a single directory:
+        >>> mkdir("/path/to/new/directory")
+        
+        Create multiple directories:
+        >>> mkdir(["/path/to/dir1", "/path/to/dir2"])
+    """
+    for d in dirs:
+        Path(d).mkdir(parents=True, exist_ok=True)
+
+
+def mv(src: str, dst: str):
+    """Move or rename a file or directory.
+    
+    Args:
+        src: Source file or directory path.
+        dst: Destination file or directory path.
+    
+    Raises:
+        FileNotFoundError: If source does not exist.
+        OSError: If move operation fails.
+    
+    Examples:
+        Move a file:
+        >>> mv("/path/to/file.txt", "/new/path/file.txt")
+        
+        Rename a directory:
+        >>> mv("/path/to/old_name", "/path/to/new_name")
+    """
+    shutil.move(src, dst)
+
+
+def rm(*targets: str):
+    """Remove one or more files or directories.
+    
+    Args:
+        *targets: Variable number of file or directory paths to remove.
+    
+    Raises:
+        OSError: If removal fails.
+    
+    Examples:
+        Remove a single file:
+        >>> rm("/path/to/file.txt")
+        
+        Remove multiple files and directories:
+        >>> rm("/path/to/file1.txt", "/path/to/dir1", "/path/to/file2.txt")
+    """
+    for target in targets:
+        target_path = Path(target)
+        if target_path.is_file():
+            target_path.unlink()
+        elif target_path.is_dir():
+            shutil.rmtree(target_path)
+        elif target_path.exists():
+            target_path.unlink()
+
+
+def symlink(src: str, dst: str):
+    """Create a symbolic link pointing to src named dst.
+    
+    Automatically detects whether the source is a file or directory
+    and creates the appropriate type of symlink.
+    
+    Args:
+        src: Source file or directory path (link target).
+        dst: Destination symlink path (link name).
+    
+    Raises:
+        FileNotFoundError: If source does not exist.
+        FileExistsError: If destination already exists.
+        OSError: If symlink creation fails.
+    
+    Examples:
+        Create a symlink to a file:
+        >>> symlink("/path/to/file.txt", "/path/to/link.txt")
+        
+        Create a symlink to a directory:
+        >>> symlink("/path/to/directory", "/path/to/link_dir")
+    """
+    src_path = Path(src)
+    target_is_directory = src_path.is_dir()
+    os.symlink(src, dst, target_is_directory=target_is_directory)
 
 
 if __name__ == "__main__":

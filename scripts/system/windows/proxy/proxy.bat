@@ -1,16 +1,16 @@
 @echo off
 
 :: Set proxy variables from environment or use default
-if defined CB_HTTP_PROXY (
-    set CB_HTTP_PROXY=%CB_HTTP_PROXY%
+if defined HTTP_PROXY_URL (
+    set HTTP_PROXY_URL=%HTTP_PROXY_URL%
 ) else (
-    set CB_HTTP_PROXY=http://127.0.0.1:7890
+    set HTTP_PROXY_URL=http://127.0.0.1:7890
 )
 
-if defined CB_HTTPS_PROXY (
-    set CB_HTTPS_PROXY=%CB_HTTPS_PROXY%
+if defined HTTPS_PROXY_URL (
+    set HTTPS_PROXY_URL=%HTTPS_PROXY_URL%
 ) else (
-    set CB_HTTPS_PROXY=%CB_HTTP_PROXY%
+    set HTTPS_PROXY_URL=%HTTP_PROXY_URL%
 )
 
 if /i "%1"=="on" (
@@ -32,14 +32,14 @@ echo Usage:
 echo   %~nx0 on     - Enable proxy
 echo   %~nx0 off    - Disable proxy
 echo.
-echo Current HTTP_PROXY : %CB_HTTP_PROXY%
-echo Current HTTPS_PROXY: %CB_HTTPS_PROXY%
+echo Current HTTP_PROXY : %HTTP_PROXY_URL%
+echo Current HTTPS_PROXY: %HTTPS_PROXY_URL%
 echo ==========================================
 exit /b 0
 
 :EnableProxy
-set HTTP_PROXY=%CB_HTTP_PROXY%
-set HTTPS_PROXY=%CB_HTTPS_PROXY%
+set HTTP_PROXY=%HTTP_PROXY_URL%
+set HTTPS_PROXY=%HTTPS_PROXY_URL%
 echo [92m[ON][0m HTTP  Proxy %HTTP_PROXY% enabled in CMD
 echo [92m[ON][0m HTTPS Proxy %HTTPS_PROXY% enabled in CMD
 exit /b 0

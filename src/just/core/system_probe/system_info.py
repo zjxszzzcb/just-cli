@@ -3,16 +3,21 @@
 import json
 import os
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Optional
+from typing import List, Literal, Dict, Optional
+
+
+Platform = Literal["linux", "darwin", "windows"]
+Arch = Literal["x86_64", "aarch64"]
+
 
 
 @dataclass
 class SystemInfo:
     """Store core system information"""
-    platform: str  # e.g., "linux", "darwin", "windows"
+    platform: Platform
     distro: str  # e.g., "ubuntu", "fedora", "macos", "windows"
     distro_version: str  # e.g., "22.04", "38", "14.2", "11"
-    arch: str
+    arch: Arch
     shell_name: str
     shell_profile: str
     path_configured: bool = False  # Default value during init
@@ -71,9 +76,26 @@ class SystemConfig:
     @classmethod
     def load_from_file(cls, filepath: str) -> Optional['SystemConfig']:
         """Load configuration from file"""
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            return cls.from_dict(data)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return None
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    @property
+    def platform(self) -> str:
+        """Get platform name"""
+        return self.system.platform
+
+    @property
+    def distro(self) -> str:
+        """Get distro name"""
+        return self.system.distro
+
+    @property
+    def distro_version(self) -> str:
+        """Get distro version"""
+        return self.system.distro_version
+
+    @property
+    def arch(self) -> str:
+        """Get architecture name"""
+        return self.system.arch

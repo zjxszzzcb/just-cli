@@ -3,11 +3,11 @@ import importlib
 import os
 import traceback
 
-from dotenv import load_dotenv, set_key
 from pathlib import Path
 from typer.core import TyperGroup
 from typing import Any, Callable, List, TypeVar, Optional
 
+from just.core.config import load_env_config, get_command_dir, get_extension_dir
 from just.utils import echo
 from just.utils.typer_utils import create_typer_app
 
@@ -29,22 +29,13 @@ def capture_exception(func: Callable[..., T]) -> Callable[..., Optional[T]]:
     return wrapper
 
 
-def load_env():
-    load_dotenv(Path(__file__).parent / ".env")
-
-
-def update_env_file(key: str, value: str):
-    echo.info("Update Env:", f"{key}={value}")
-    set_key(str(Path(__file__).parent / ".env"), key, value)
-
-
 class SortedGroup(TyperGroup):
     def list_commands(self, ctx):
         return sorted(super().list_commands(ctx))
     
     
 def run_just_cli(*args, **kwargs):
-    load_env()
+    load_env_config()
     just_cli(*args, **kwargs)
 
 
@@ -65,22 +56,8 @@ def traverse_script_dir(directory: str) -> List[str]:
 def main():
     # Dynamically import all script modules to register their commands
     script_modules = []
-    script_modules.extend(
-        traverse_script_dir(
-            directory=os.path.join(
-                os.path.dirname(__file__),
-                "commands"
-            )
-        )
-    )
-    script_modules.extend(
-        traverse_script_dir(
-            directory=os.path.join(
-                os.path.dirname(__file__),
-                "extensions"
-            )
-        )
-    )
+    script_modules.extend(traverse_script_dir(get_command_dir().as_posix()))
+    script_modules.extend(traverse_script_dir(get_extension_dir().as_posix()))
     script_modules.sort()
     missing_packages = []
     for module_name in script_modules:
@@ -100,7 +77,3 @@ def main():
             continue
     # Run the CLI application
     run_just_cli()
-
-
-if __name__ == "__main__":
-    update_env_file("JUST_EDIT_USE_TOOL", "textual")

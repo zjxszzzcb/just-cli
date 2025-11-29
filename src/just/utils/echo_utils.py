@@ -49,6 +49,18 @@ def error(*args, sep: str = ' ', end: str = '\n'):
     red(f"[ERROR] {to_string(*args, sep=sep, end=end)}", end='')
 
 
+def critical(*args, sep: str = ' ', end: str = '\n'):
+    typer.secho(f"[CRITICAL] {to_string(*args, sep=sep, end=end)}", fg=typer.colors.BRIGHT_RED, bold=True, nl=False)
+
+
+def success(*args, sep: str = ' ', end: str = '\n'):
+    green(f"[SUCCESS] {to_string(*args, sep=sep, end=end)}", end='')
+
+    
+def fail(*args, sep: str = ' ', end: str = '\n'):
+    typer.secho(f"[FAIL] {to_string(*args, sep=sep, end=end)}", fg=typer.colors.BRIGHT_RED, bold=True, nl=False)
+
+
 def markdown(*args, sep: str = ' ', end: str = '\n'):
     text = docstring(to_string(*args, sep=sep, end=end))
     console = Console()

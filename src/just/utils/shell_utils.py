@@ -2,7 +2,7 @@ import shlex
 import shutil
 import subprocess
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Union
 
 import just.utils.echo_utils as echo
 
@@ -51,6 +51,21 @@ def execute_command(
     if verbose:
         echo.debug(" Command Execution End ".center(terminal_width, '='))
     return exit_code, output
+
+
+def execute_commands(
+    commands: Union[str, List[str]],
+    capture_output: bool = False,
+    verbose: Optional[bool] = None
+) -> List[str]:
+    if isinstance(commands, str):
+        commands = [line for line in commands.splitlines()]
+
+    outputs = []
+    for line in commands:
+        outputs.append(execute_command(line, capture_output, verbose))
+
+    return outputs
 
 
 def split_command(command: str):

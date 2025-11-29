@@ -3,50 +3,89 @@
 import platform
 import os
 import shutil
+
 from datetime import datetime, timezone
 from typing import Tuple, List, Dict
-from just.models.system_info import SystemInfo, PackageManager, ToolStatus, SystemConfig
+
+from just.core.system_probe.system_info import (
+    Arch,
+    Platform,
+    SystemInfo,
+    PackageManager,
+    ToolStatus,
+    SystemConfig
+)
 
 
-def get_arch() -> str:
+def get_arch() -> Arch:
     """Normalize architecture name"""
     machine = platform.machine().lower()
     if machine in ("x86_64", "amd64"):
-        return "amd64"
+        return "x86_64"
     if machine in ("aarch64", "arm64"):
-        return "arm64"
-    return machine
+        return "aarch64"
+    raise NotImplementedError(f"Unsupported architecture {machine}")
 
 
-def get_platform_info() -> Tuple[str, str, str]:
-    """Probe Platform, Distro, and Version"""
+def get_platform() -> Platform:
+    """Normalize platform name"""
     sys_name = platform.system().lower()
+    if sys_name in ("linux", "darwin", "windows"):
+        return sys_name
+    raise NotImplementedError(f"Unsupported platform {sys_name}")
 
-    if sys_name == "linux":
-        # Try to use 'distro' library (if installed)
+
+def get_distro_name_version(plat: Platform) -> Tuple[str, str]:
+    """Probe Platform, Distro, and Version"""
+    plat = plat or get_platform()
+
+    if plat == "linux":
+        return get_distro_name_version_for_linux()
+
+    elif plat == "darwin":
+        return get_distro_name_version_for_darwin()
+
+    elif plat == "windows":
+        return get_distro_name_version_for_windows()
+
+    else:
+        raise NotImplementedError(f"Unsupported platform {plat}")
+
+
+def get_distro_name_version_for_linux() -> Tuple[str, str]:
+    try:
+        import distro
+        return distro.id(), distro.version()
+    except ImportError:
+        # Fallback to /etc/os-release (simple parsing)
         try:
-            import distro
-            return "linux", distro.id(), distro.version()
-        except ImportError:
-            # Fallback to /etc/os-release (simple parsing)
-            try:
-                with open("/etc/os-release") as f:
-                    data = dict(line.strip().split('=', 1) for line in f if '=' in line)
-                    distro_name = data.get('ID', 'linux').strip('"')
-                    ver = data.get('VERSION_ID', 'unknown').strip('"')
-                    return "linux", distro_name, ver
-            except FileNotFoundError:
-                return "linux", "unknown-linux", "unknown"
+            with open("/etc/os-release") as f:
+                data = dict(line.strip().split('=', 1) for line in f if '=' in line)
+                distro_name = data.get('ID', 'linux').strip('"')
+                ver = data.get('VERSION_ID', 'unknown').strip('"')
+                return distro_name, ver
+        except FileNotFoundError:
+            raise RuntimeError("Failed to import distro or find /etc/os-release")
 
-    elif sys_name == "darwin":  # macOS
-        mac_ver = platform.mac_ver()
-        return "darwin", "macos", mac_ver[0]
 
-    elif sys_name == "windows":
-        win_ver = platform.version()  # e.g., '10.0.19045'
-        return "windows", "windows", win_ver
+def get_distro_name_version_for_darwin() -> Tuple[str, str]:
+    try:
+        return "macos", str(platform.mac_ver())
+    except Exception:
+        raise RuntimeError("Failed to get distro name version")
 
-    return sys_name, "unknown", "unknown"
+
+def get_distro_name_version_for_windows() -> Tuple[str, str]:
+    version = platform.version()
+    version_parts = list(map(int, version.split('.')))
+
+    if version_parts[0] == 10:
+        if version_parts[2] >= 22000:  # Windows 11开始于build 22000
+            return "windows", "11"
+        else:
+            return "windows", "10"
+    else:
+        return "windows", version
 
 
 def get_shell_info() -> Tuple[str, str, bool]:
@@ -124,7 +163,8 @@ def probe_and_initialize_config() -> 'SystemConfig':
     Probe the current system environment and return an instantiated SystemConfig object.
     """
     # 1. Probe system
-    plat, distro, ver = get_platform_info()
+    plat = get_platform()
+    distro, ver = get_distro_name_version(plat)
     arch = get_arch()
     shell_name, shell_profile, path_configured = get_shell_info()
 

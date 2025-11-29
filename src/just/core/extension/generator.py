@@ -3,6 +3,7 @@ from inspect import cleandoc
 from pathlib import Path
 from typing import List, Tuple
 
+from just.core.config import get_extension_dir, get_command_dir
 from just.core.extension.parser import parse_command_structure, Argument
 from just.core.extension.utils import search_existing_script
 
@@ -40,7 +41,7 @@ def get_command_paths(just_commands: List[str]) -> Tuple[Path, Path]:
         raise ValueError("No command specified")
 
     # Calculate paths - extensions for extension commands
-    extensions_dir = Path(__file__).parent.parent.parent / 'extensions'
+    extensions_dir = get_extension_dir()
 
     script_path = Path(os.path.join(extensions_dir, *commands) + '.py')
     directory_path = script_path.parent
@@ -63,7 +64,7 @@ def ensure_command_directories_exist(just_commands: List[str]) -> None:
     if not commands:
         return
 
-    extensions_dir = Path(__file__).parent.parent.parent / 'extensions'
+    extensions_dir = get_extension_dir()
 
     # Create intermediate directories
     for i in range(len(commands) - 1):
@@ -87,8 +88,8 @@ def generate_package_init_files(just_commands: List[str]) -> None:
     if not commands:
         return
 
-    extensions_dir = Path(__file__).parent.parent.parent / 'extensions'
-    commands_dir = Path(__file__).parent.parent.parent / 'commands'
+    extensions_dir = get_extension_dir()
+    commands_dir = get_command_dir()
 
     # Create __init__.py files for intermediate packages
     for i in range(len(commands) - 1):

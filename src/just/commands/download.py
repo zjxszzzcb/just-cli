@@ -1,18 +1,16 @@
 import typer
-import os
-from pathlib import Path
 from typing import List, Optional, Dict
 from typing_extensions import Annotated
-from urllib.parse import urlparse
 
 from just import just_cli, capture_exception, echo
 from just.utils import download_with_resume
+from just.utils.download_utils import DownloadError, NetworkError, FileSystemError, DownloadCancelledError
 
 
-def parse_headers(header_list: List[str]) -> Dict[str, str]:
+def parse_headers(header_list: Optional[List[str]]) -> Optional[Dict[str, str]]:
     """Parse header list to dictionary."""
     if not header_list:
-        return {}
+        return None
     headers: Dict[str, str] = {}
     for header in header_list:
         if ':' in header:
@@ -49,29 +47,16 @@ def download_command(
     just download https://example.com/file.zip -H "Authorization: Bearer token" -H "User-Agent: MyApp/1.0"
     just download https://example.com/file.zip -o myfile.zip
     """
-    # Parse headers
-    parsed_headers = parse_headers(headers)
-
-    # Determine output filename
-    if output:
-        output_file = output
-    else:
-        # Extract filename from URL
-        parsed_url = urlparse(url)
-        output_file = os.path.basename(parsed_url.path)
-        if not output_file:
-            output_file = "downloaded_file"
-
-    # Ensure output directory exists
-    output_path = Path(output_file)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    echo.info(
-        f"Downloading {url} to {output_file}"
-    )
-
-    # Perform download with resume support
-    success = download_with_resume(url, parsed_headers, output_file, verbose=verbose)
-
-    if not success:
-        raise Exception("Download failed")
+    try:
+        download_with_resume(
+            url=url,
+            headers=parse_headers(headers),
+            output_file=output,
+            verbose=verbose
+        )
+    except DownloadCancelledError as e:
+        echo.info(str(e))
+        raise typer.Exit(1)
+    except (NetworkError, FileSystemError, DownloadError) as e:
+        echo.error(f"Download failed: {e}")
+        raise typer.Exit(1)

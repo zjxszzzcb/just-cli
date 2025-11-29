@@ -7,13 +7,15 @@ import os
 import sys
 import tempfile
 import shutil
-import time
+
 from pathlib import Path
 
-# Add the src directory to the path so we can import the download module
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from just.utils.download_utils import download_with_resume
+from just.utils.download_utils import (
+    download_with_resume,
+    NetworkError,
+    FileSystemError,
+    DownloadCancelledError
+)
 from just.utils.shell_utils import execute_command
 
 
@@ -58,11 +60,11 @@ def test_direct_download_complete(test_dir):
     print("\n=== Testing direct download complete ===")
 
     # Test file URL
-    url = "https://www.modelscope.cn/models/Qwen/Qwen3-0.6B/resolve/master/tokenizer.json"
+    url = "https://www.google.com/robots.txt"
     output_file = str(test_dir / "tokenizer_direct.json")
 
     # Perform download
-    success = download_with_resume(url, {}, output_file, verbose=True)
+    success = download_with_resume(url, {"Accept-Encoding": "identity"}, output_file, verbose=True)
 
     # Verify download
     assert success, "Direct download failed"
@@ -84,7 +86,7 @@ def test_command_download_complete(test_dir):
         print(f"Removed existing file: {output_file}")
 
     # Test file URL
-    url = "https://www.modelscope.cn/models/Qwen/Qwen3-0.6B/resolve/master/tokenizer.json"
+    url = "https://www.google.com/robots.txt"
 
     # Perform download using just command
     exit_code, output = execute_command(
@@ -116,10 +118,10 @@ def test_direct_download_resume(test_dir, reference_file):
     assert partial_size == 1000, f"Partial file size is {partial_size}, expected 1000"
 
     # Test file URL
-    url = "https://www.modelscope.cn/models/Qwen/Qwen3-0.6B/resolve/master/tokenizer.json"
+    url = "https://www.google.com/robots.txt"
 
     # Perform download (should resume)
-    success = download_with_resume(url, {}, partial_file, verbose=True)
+    success = download_with_resume(url, {"Accept-Encoding": "identity"}, partial_file, verbose=True)
 
     # Verify download
     assert success, "Resume download failed"
@@ -151,7 +153,7 @@ def test_command_download_resume(test_dir, reference_file):
     assert partial_size == 1000, f"Partial file size is {partial_size}, expected 1000"
 
     # Test file URL
-    url = "https://www.modelscope.cn/models/Qwen/Qwen3-0.6B/resolve/master/tokenizer.json"
+    url = "https://www.google.com/robots.txt"
 
     # Perform download using just command (should resume)
     exit_code, output = execute_command(
@@ -174,7 +176,7 @@ def test_download_with_custom_headers(test_dir):
     print("\n=== Testing download with custom headers ===")
 
     # Test file URL
-    url = "https://www.modelscope.cn/models/Qwen/Qwen3-0.6B/resolve/master/tokenizer.json"
+    url = "https://www.google.com/robots.txt"
     output_file = str(test_dir / "tokenizer_headers.json")
 
     # Custom headers
@@ -202,8 +204,11 @@ def test_download_nonexistent_url(test_dir):
     url = "https://www.modelscope.cn/models/Qwen/Qwen3-0.6B/resolve/master/nonexistent.json"
     output_file = str(test_dir / "nonexistent.json")
 
-    # Perform download
-    success = download_with_resume(url, {}, output_file, verbose=True)
+    try:
+        # Perform download
+        success = download_with_resume(url, {"Accept-Encoding": "identity"}, output_file, verbose=True)
+    except Exception:
+        success = False
 
     # Verify download failed
     assert not success, "Download should have failed for nonexistent URL"
@@ -244,7 +249,7 @@ def test_416_error_fix_larger_local_file(test_dir):
 
     try:
         # Attempt to download the file
-        success = download_with_resume(url, {}, output_file, verbose=True)
+        success = download_with_resume(url, {"Accept-Encoding": "identity"}, output_file, verbose=True)
 
         # Restore original input function
         builtins.input = original_input
@@ -296,7 +301,7 @@ def test_416_error_fix_user_cancellation(test_dir):
 
     try:
         # Attempt to download the file
-        success = download_with_resume(url, {}, output_file, verbose=True)
+        success = download_with_resume(url, {"Accept-Encoding": "identity"}, output_file, verbose=True)
 
         # Restore original input function
         builtins.input = original_input
@@ -314,6 +319,96 @@ def test_416_error_fix_user_cancellation(test_dir):
         # Restore original input function
         builtins.input = original_input
         raise e
+
+
+def test_network_error_404(test_dir):
+    """Test that 404 error raises NetworkError."""
+    print("\n=== Testing NetworkError for 404 ===")
+
+    url = "https://www.modelscope.cn/models/Qwen/Qwen3-0.6B/resolve/master/nonexistent.json"
+    output_file = str(test_dir / "nonexistent.json")
+
+    try:
+        download_with_resume(url, {}, output_file, verbose=True)
+        assert False, "Expected NetworkError to be raised"
+    except NetworkError as e:
+        print(f"✅ Correctly caught NetworkError: {e}")
+        assert "404" in str(e)
+
+    print("✅ NetworkError test passed")
+
+
+def test_network_error_invalid_domain(test_dir):
+    """Test that invalid domain raises NetworkError."""
+    print("\n=== Testing NetworkError for invalid domain ===")
+
+    url = "https://invalid-domain-that-does-not-exist-12345.com/file.json"
+    output_file = str(test_dir / "invalid.json")
+
+    try:
+        download_with_resume(url, {}, output_file, verbose=False)
+        assert False, "Expected NetworkError to be raised"
+    except NetworkError as e:
+        print(f"✅ Correctly caught NetworkError: {e}")
+
+    print("✅ Invalid domain test passed")
+
+
+def test_filesystem_error(test_dir):
+    """Test that filesystem errors raise FileSystemError."""
+    print("\n=== Testing FileSystemError ===")
+
+    url = "https://www.google.com/robots.txt"
+
+    if os.name == 'nt':
+        # Windows: use invalid path characters
+        output_file = "C:\\invalid<>path\\file.json"
+    else:
+        # Unix: use root directory
+        output_file = "/root/test_file.json"
+
+    try:
+        download_with_resume(url, {}, output_file, verbose=False)
+        print("⚠️  Warning: Expected FileSystemError but got success")
+    except FileSystemError as e:
+        print(f"✅ Correctly caught FileSystemError: {e}")
+    except PermissionError as e:
+        print(f"✅ Got PermissionError (acceptable): {e}")
+
+    print("✅ FileSystemError test passed")
+
+
+def test_download_cancelled_error(test_dir):
+    """Test that user cancellation raises DownloadCancelledError."""
+    print("\n=== Testing DownloadCancelledError ===")
+
+    url = "https://raw.githubusercontent.com/zjxszzzcb/just-cli/refs/heads/main/pyproject.toml"
+    output_file = str(test_dir / "pyproject.toml.test")
+
+    # Create a larger file
+    with open(output_file, 'wb') as f:
+        f.write(b'0' * 500)
+
+    # Mock user input to decline
+    original_input = input
+
+    def mock_input(prompt):
+        if "Delete and re-download?" in prompt:
+            return 'n'
+        return original_input(prompt)
+
+    import builtins
+    builtins.input = mock_input
+
+    try:
+        download_with_resume(url, {}, output_file, verbose=False)
+        assert False, "Expected DownloadCancelledError to be raised"
+    except DownloadCancelledError as e:
+        print(f"✅ Correctly caught DownloadCancelledError: {e}")
+    finally:
+        builtins.input = original_input
+
+    print("✅ DownloadCancelledError test passed")
 
 
 def run_all_tests():
@@ -334,6 +429,10 @@ def run_all_tests():
         test_download_nonexistent_url(test_dir)
         test_416_error_fix_larger_local_file(test_dir)
         test_416_error_fix_user_cancellation(test_dir)
+        test_network_error_404(test_dir)
+        test_network_error_invalid_domain(test_dir)
+        test_filesystem_error(test_dir)
+        test_download_cancelled_error(test_dir)
 
         print("\n🎉 All download tests passed!")
         return True

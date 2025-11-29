@@ -3,7 +3,7 @@ import os
 import warnings
 
 from abc import ABC
-from typing import Any, Literal, Union, get_type_hints, get_origin, get_args, List, Dict, NewType
+from typing import Any, Literal, Union, get_type_hints, get_origin, get_args, List, Dict, NewType, Self
 
 
 AbsolutePath = NewType("AbsolutePath", str)
@@ -88,10 +88,10 @@ class EnvConfig(ABC):
             return env_value
 
         target_type = type_hints[name]
-        return self.convert_string_to_target_type(env_value, target_type)
+        return self._convert_string_to_target_type(env_value, target_type)
 
     @staticmethod
-    def convert_string_to_target_type(string_value: str, target_type: type) -> Any:
+    def _convert_string_to_target_type(string_value: str, target_type: type) -> Any:
         """
         Convert environment variable string to the target type based on type annotation.
         
@@ -152,4 +152,13 @@ class EnvConfig(ABC):
         # Fallback for unsupported types - return as string with warning
         warnings.warn(f"Unsupported type: {target_type}, returning as string")
         return string_value
-        
+
+    @property
+    def keys(self) -> Self:
+        class EnvConfigKeys(self.__class__):
+            def __getattribute__(self, item):
+                if item.startswith('_'):
+                    return super().__getattribute__(item)
+                _ = super().__getattribute__(item)
+                return item
+        return EnvConfigKeys()
