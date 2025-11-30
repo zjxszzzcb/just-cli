@@ -8,77 +8,178 @@ Tired of copy-pasting giant commands and tapping arrow keys forever just to chan
 
 Just want an all-in-one toolkit for everyday simple tasks, instead of endlessly searching and testing Deep Research results one by one?
 
-## 📦 Installation
+**Just** is built to end the hassle. It focuses purely on making the simple, everyday developer tasks *actually simple*.
+
+
+## Installation
 
 ```shell
 pip install just-cli
 ```
 
-## 🚀 The Good Stuff
+## 😋 The Good Stuff
 
-### 1. The Toolkit
+### The Toolkit 🧰
 
-#### Download Files
+A collection of essential tools that work exactly how you expect them to.
+
+#### 📥 Easy Download
+Just download files like `wget` or `curl`, but with smart naming, auto-resume, and a beautiful progress bar by default.
+
 ```bash
-# Download with resume support and custom headers
-just download https://example.com/file.zip
-just download https://example.com/file.zip -H "Authorization: Bearer token" -o myfile.zip
+# Auto-resume is on by default. The filename is automatically extracted from the URL.
+just download https://example.com/big-file.zip
+
+# Use -H for custom headers and -o to specify a custom output filename.
+just download https://api.example.com/data -H "Authorization: Bearer token" -o data.json
 ```
 
-#### Extract Archives
+#### 📦 Universal Extract
+Just extract the archive. It intelligently detects the compression format (via magic bytes) and handles everything.
+*   **Supported**: ZIP, TAR, GZ, BZ2, XZ, ZSTD, 7Z.
+*   **Note**: RAR is **not** supported.
+
 ```bash
-# Automatic format detection - ZIP, TAR, GZ, BZ2, XZ, ZSTD, 7Z
+# Extracts to a folder named after the archive by default
 just extract archive.tar.gz
-just extract data.7z -o out/
+
+# Specify a custom output directory
+just extract data.7z -o ./output_dir
 ```
 
-#### Edit Files
+#### 📝 Text Editor
+Just edit files with a simple TUI editor.
+
 ```bash
-# Beautiful TUI editor
 just edit README.md
 ```
 
-#### View Files
+![Editor Screenshot](docs/images/editor_demo.png)
+
+#### 📖 Smart Viewer
+Just view files with intelligent rendering. Currently supports Markdown with syntax highlighting and TOC.
+*Based on the excellent [Textual Markdown example](https://github.com/Textualize/textual).*
+
 ```bash
-# Preview markdown with syntax highlighting
 just view README.md
 ```
 
-#### Linux Commands (for Windows users)
+![Viewer Screenshot](docs/images/viewer_demo.png)
+
+#### 🌐 Cloudflare Tunnel
+Just expose your local server to the internet.
+
 ```bash
-just ls
+# Powered by Cloudflare Tunnel (cloudflared)
+just tunnel http://localhost:8000
+```
+
+#### 🐧 Common Linux File Operations
+Just some common file operations implemented in Python, for those tired of remembering command differences between Linux and Windows.
+
+```bash
 just cat
-just mkdir
+just ls 
 just cp
 just mv
 just rm
+just mkdir
 ```
 
-### 2. The Extension System
+### The Extension System 🧩
 
-This is where the magic happens. You can turn *any* complex shell command into a beautiful, typed `just` command.
+#### Create a CLI tool with Just Extension in just 2 steps
 
-Imagine you have a command you use all the time, like checking a Docker container's IP:
+The core idea is simple: **String Replacement**. You take a long, complex command, mark the parts you want to change, and `just` generates a CLI for it.
+
+Here is an example:
+
+1.  **Register the complex command**:
+    Tell `just` what command you want to alias.
+    ```bash
+    just ext add docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' f523e75ca4ef
+    ```
+
+2.  **Design your command**:
+    Design a command structure that is easy for you to remember by marking dynamic parts using the syntax `[<name>:<type>=<default>#<help>]`.
+    ```text
+    # Replace the static container ID with a dynamic argument
+    Enter extension commands: just docker ip f523e75ca4ef[container_id:str#The Container ID]
+    ```
+
+**That's it!** Now you can use your new command:
 ```bash
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' f523e75ca4ef
-```
-*Gross.*
-
-Now, wave your wand:
-```bash
-just ext add docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' f523e75ca4ef
-> just docker ip f523e75ca4ef[container_id:str#The container ID]
+just docker ip <container_id>
 ```
 
-Now you have a new command:
-```bash
-just docker ip my-container
+#### ✨ How it works
+
+When you run the command above, `just` compiles a native Python script using **typer**.
+
+1.  **Parsing**: The syntax `f523e75ca4ef[container_id:str#The Container ID]` tells `just` to:
+    *   Identify `f523e75ca4ef` as the **target string** to replace.
+    *   Create a variable `container_id` of type `str`.
+    *   Use "The Container ID" as the help message.
+
+2.  **Code Generation**: It generates a Python function with a type-safe signature:
+    ```python
+    def main(container_id: Annotated[str, typer.Argument(help="The Container ID")]):
+        # The original command template
+        command = "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' f523e75ca4ef"
+        
+        # String Replacement Logic
+        command = command.replace('f523e75ca4ef', str(container_id))
+        
+        # Execution
+        subprocess.run(shlex.split(command))
+    ```
+
+3.  **Result**: You get a fully functional CLI with auto-completion, type validation, and help messages—all powered by the simple act of string replacement.
+
+
+### The Installer 💿
+
+#### Automate the "Official Docs" with minimal code.
+
+`just` allows you to run any command from the official docs using `just.execute_commands`. It simply automates your manual steps.
+
+To help you make decisions, `just` provides system probing tools:
+*   `just.system.platform`: `linux`, `windows`, `darwin`
+*   `just.system.arch`: `x86_64`, `aarch64`
+*   `just.system.pms`: Detects `winget`, `brew`, `apt`, etc.
+
+We also provide two specialized helpers for common scenarios:
+*   **`just.BinaryInstaller`**: Best for single-file binaries (handles download, chmod, path).
+*   **`just.SimpleReleaseInstaller`**: Best for archives (handles download, extraction, linking).
+
+#### Example: Installing Cloudflared
+
+Here is a complete example that mimics the official installation logic:
+
+```python
+@just.installer(check="cloudflared --version")
+def install_cloudflare():
+    """Install Cloudflare Tunnel client."""
+    
+    # Use standard package managers if available
+    if just.system.pms.winget.is_available():
+        just.execute_commands("winget install --id Cloudflare.cloudflared")
+        
+    elif just.system.pms.brew.is_available():
+        just.execute_commands("brew install cloudflared")
+    
+    # Use BinaryInstaller
+    elif just.system.platform == 'linux':
+        # This helper automates: curl -> chmod +x -> symlink to bin
+        just.BinaryInstaller(
+            url='https://github.com/cloudflare/cloudflared/releases/.../cloudflared-linux-amd64',
+            alias='cloudflared'
+        ).run()
+    
+    else:
+        raise NotImplementedError
 ```
 
-It even generates help messages!
-```bash
-just docker ip --help
-```
 
 ## 🤝 Contributing
 
@@ -89,4 +190,3 @@ Just keep it cool, keep it simple, and don't break the "just works" vibe.
 ## 📄 License
 
 MIT. Go wild.
-

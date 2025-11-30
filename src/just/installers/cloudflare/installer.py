@@ -12,3 +12,5 @@ def install_cloudflare():
     elif just.system.platform == 'linux' and just.system.arch == 'x86_64':
         url = 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64'
         just.BinaryInstaller(url, alias='cloudflared').run()
+    else:
+        raise NotImplementedError

@@ -1,7 +1,7 @@
 [project]
 name = "just-cli"
 version = "0.1.0"
-description = "Add your description here"
+description = "Your all-in-one CLI Toolkit"
 readme = "README.md"
 authors = [
     { name = "zzzcb", email = "zjxs.zzzcb@gmail.com" }
