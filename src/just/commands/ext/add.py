@@ -9,6 +9,7 @@ from just import echo
 from just.core.extension.generator import generate_extension_script
 from just.core.extension.utils import split_command_line
 from just.tui.extension import ExtensionTUI
+from just.utils.user_interaction import get_input
 
 
 def add_extension(
@@ -53,7 +54,7 @@ def add_extension(
     ============================================================
     """))
 
-    just_extension_commands = input("Enter extension commands: ")
+    just_extension_commands = get_input("Enter extension commands: ")
     # Split the command line to handle annotations with spaces properly
     just_extension_commands = split_command_line(just_extension_commands)
     echo.echo(str(just_extension_commands))

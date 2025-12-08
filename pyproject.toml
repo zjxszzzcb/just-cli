@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     "httpx",
+    "prompt-toolkit>=3.0.0",
     "python-dotenv",
     "py7zr",
     "rich>=14.2.0",
