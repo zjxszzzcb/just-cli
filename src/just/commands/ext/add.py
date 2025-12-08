@@ -1,6 +1,7 @@
 import shlex
 import typer
 
+from inspect import cleandoc
 from typing import List, Optional
 
 
@@ -11,10 +12,7 @@ from just.tui.extension import ExtensionTUI
 
 
 def add_extension(
-    commands: Optional[List[str]] = typer.Argument(
-        None,
-        help="The command to register as a just extension"
-    ),
+    ctx: typer.Context,
     tui: bool = typer.Option(
         False,
         "--tui",
@@ -25,9 +23,12 @@ def add_extension(
     Parse and register a command as a just extension.
 
     Args:
-        commands: The commands to register, e.g., "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' f523e75ca4ef"
+        ctx: Typer context to capture remaining arguments
         tui: Whether to launch TUI mode
     """
+    # Get all arguments after 'just ext add'
+    commands = ctx.args
+    
     # If no command provided or TUI mode requested, launch TUI
     if not commands or tui:
         launch_tui()
@@ -37,18 +38,20 @@ def add_extension(
     echo.echo(str(commands))
 
     # Show syntax hints
-    echo.echo("\n" + "="*60)
-    echo.echo("Command Declaration Syntax Hints:")
-    echo.echo("  Format: just <command> [ARGUMENT:type=default#help] [--option VALUE:type#help]")
-    echo.echo("")
-    echo.echo("  Examples:")
-    echo.echo("    just docker inspect-container CONTAINER_ID:str#container identifier")
-    echo.echo("    just api-call endpoint:str=https://api.example.com --method GET:type=str")
-    echo.echo("")
-    echo.echo("  ✓ Valid: letters, numbers, underscores (e.g., inspect_container)")
-    echo.echo("  ✗ Special chars: -, /, . will be auto-replaced with _")
-    echo.echo("  ✓ Numeric: commands like '123' become 'num_123'")
-    echo.echo("="*60 + "\n")
+    echo.echo(cleandoc("""
+    ============================================================
+    Extension Command Syntax:
+      Format: just <commands> <placeholder>[var_name:type=default#help]
+    
+      Syntax breakdown:
+        - commands: sub commands list
+        - placeholder: The value to replace
+        - var_name: Variable name for the parameter
+        - type: str|int|float|bool (default: str)
+        - default: Optional default value
+        - help: Help message for the parameter
+    ============================================================
+    """))
 
     just_extension_commands = input("Enter extension commands: ")
     # Split the command line to handle annotations with spaces properly

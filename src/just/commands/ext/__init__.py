@@ -15,7 +15,7 @@ def _load_commands():
     from .list import list_extensions
 
     # Register commands
-    ext_cli.command(name="add")(add_extension)
+    ext_cli.command(name="add", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})(add_extension)
     ext_cli.command(name="edit")(edit_extension)
     ext_cli.command(name="list")(list_extensions)
 
