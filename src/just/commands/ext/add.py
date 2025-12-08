@@ -8,10 +8,8 @@ from just import echo
 from just.core.extension.generator import generate_extension_script
 from just.core.extension.utils import split_command_line
 from just.tui.extension import ExtensionTUI
-from . import ext_cli
 
 
-@ext_cli.command(name="add", context_settings={"ignore_unknown_options": True})
 def add_extension(
     commands: Optional[List[str]] = typer.Argument(
         None,
@@ -37,6 +35,20 @@ def add_extension(
 
     # Print parsed command for debugging
     echo.echo(str(commands))
+
+    # Show syntax hints
+    echo.echo("\n" + "="*60)
+    echo.echo("Command Declaration Syntax Hints:")
+    echo.echo("  Format: just <command> [ARGUMENT:type=default#help] [--option VALUE:type#help]")
+    echo.echo("")
+    echo.echo("  Examples:")
+    echo.echo("    just docker inspect-container CONTAINER_ID:str#container identifier")
+    echo.echo("    just api-call endpoint:str=https://api.example.com --method GET:type=str")
+    echo.echo("")
+    echo.echo("  ✓ Valid: letters, numbers, underscores (e.g., inspect_container)")
+    echo.echo("  ✗ Special chars: -, /, . will be auto-replaced with _")
+    echo.echo("  ✓ Numeric: commands like '123' become 'num_123'")
+    echo.echo("="*60 + "\n")
 
     just_extension_commands = input("Enter extension commands: ")
     # Split the command line to handle annotations with spaces properly

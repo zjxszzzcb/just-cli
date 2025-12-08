@@ -34,6 +34,12 @@ class ExtensionTUI(App):
         height: 90%;
     }
 
+    #hint-container {
+        height: 8%;
+        border: solid yellow;
+        padding: 1;
+    }
+
     EditArea {
         height: 1fr;
     }
@@ -46,6 +52,16 @@ class ExtensionTUI(App):
     Label {
         margin: 1 0 0 0;
         text-style: bold;
+    }
+
+    .help-text {
+        color: gray;
+        margin: 0 0 0 1;
+        text-style: italic;
+    }
+
+    .syntax-hint {
+        margin: 0 0 0 1;
     }
     """
 
@@ -67,9 +83,17 @@ class ExtensionTUI(App):
                 id="editor-container"
             ),
             Vertical(
-                Label("Command Template (Text):"),
-                self.template_input,
                 Label("Command Declaration:"),
+                Label("Format: just <command> [ARGUMENT:type=default#help] [--option VALUE:type#help]",
+                      classes="help-text"),
+                Label("Examples:", classes="help-text"),
+                Label("  just docker inspect-container CONTAINER_ID:str#container identifier",
+                      classes="help-text"),
+                Label("  just api-call endpoint:str=https://api.example.com --method GET:type=str",
+                      classes="help-text"),
+                Label("✓ Valid: letters, numbers, underscores", classes="syntax-hint"),
+                Label("✗ Special chars: -, /, . will be auto-replaced with _", classes="syntax-hint"),
+                Label("✓ Numeric: commands like '123' become 'num_123'", classes="syntax-hint"),
                 self.declaration_input,
                 id="input-container"
             ),
@@ -95,21 +119,35 @@ class ExtensionTUI(App):
             self.bell()
             return
 
+        # Show syntax hints in terminal
+        print("\n" + "="*60)
+        print("Command Declaration Syntax Hints:")
+        print("  Format: just <command> [ARGUMENT:type=default#help] [--option VALUE:type#help]")
+        print("")
+        print("  Examples:")
+        print("    just docker inspect-container CONTAINER_ID:str#container identifier")
+        print("    just api-call endpoint:str=https://api.example.com --method GET:type=str")
+        print("")
+        print("  ✓ Valid: letters, numbers, underscores")
+        print("  ✗ Special chars: -, /, . will be auto-replaced with _")
+        print("  ✓ Numeric: commands like '123' become 'num_123'")
+        print("="*60 + "\n")
+
         # Process the command template and declaration
         print(f"Command Template: {command_template}")
         print(f"Command Declaration: {command_declaration}")
 
         # Import and use the extension creation function
         try:
-            from just.utils.ext_utils import create_typer_script
+            from just.core.extension.generator import generate_extension_script
             import shlex
 
             # Parse the declaration into a list of arguments
             just_commands = shlex.split(command_declaration)
 
             # Create the extension
-            result = create_typer_script(command_template, just_commands)
-            print(f"Extension created successfully: {result}")
+            generate_extension_script(command_template, just_commands)
+            print(f"Extension created successfully!")
         except Exception as e:
             print(f"Error creating extension: {e}")
 

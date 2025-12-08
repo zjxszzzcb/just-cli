@@ -6,6 +6,7 @@ from typing import List, Tuple
 from just.core.config import get_extension_dir, get_command_dir
 from just.core.extension.parser import parse_command_structure, Argument
 from just.core.extension.utils import search_existing_script
+from just.core.extension.validator import sanitize_command_path, validate_command_names
 
 
 def validate_command_input(just_commands: List[str]) -> None:
@@ -40,10 +41,30 @@ def get_command_paths(just_commands: List[str]) -> Tuple[Path, Path]:
     if not commands:
         raise ValueError("No command specified")
 
+    # Sanitize command names for file system compatibility
+    sanitized_commands, transformation_notes = sanitize_command_path(commands)
+
+    # Log transformations if any
+    if transformation_notes:
+        from just import echo
+        echo.echo("\nCommand name sanitization applied:")
+        for note in transformation_notes:
+            echo.echo(f"  - {note}")
+        echo.echo("")
+
+    # Validate command names and show warnings
+    warnings = validate_command_names(sanitized_commands)
+    if warnings:
+        from just import echo
+        echo.echo("\nCommand validation warnings:")
+        for warning in warnings:
+            echo.echo(f"  ⚠ {warning}")
+        echo.echo("")
+
     # Calculate paths - extensions for extension commands
     extensions_dir = get_extension_dir()
 
-    script_path = Path(os.path.join(extensions_dir, *commands) + '.py')
+    script_path = Path(os.path.join(extensions_dir, *sanitized_commands) + '.py')
     directory_path = script_path.parent
 
     return script_path, directory_path
@@ -359,13 +380,33 @@ def generate_extension_script(custom_command: str, just_commands: List[str]) -> 
     # Parse command structure
     parsed_commands, arguments, options = parse_command_structure(just_commands)
 
+    # Sanitize command names
+    sanitized_commands, transformation_notes = sanitize_command_path(parsed_commands)
+
+    # Log transformations if any
+    if transformation_notes:
+        from just import echo
+        echo.echo("\nCommand name sanitization applied:")
+        for note in transformation_notes:
+            echo.echo(f"  - {note}")
+        echo.echo("")
+
+    # Validate command names and show warnings
+    warnings = validate_command_names(sanitized_commands)
+    if warnings:
+        from just import echo
+        echo.echo("\nCommand validation warnings:")
+        for warning in warnings:
+            echo.echo(f"  ⚠ {warning}")
+        echo.echo("")
+
     # Check if script already exists
-    exist, final_expect_script_path = search_existing_script(parsed_commands)
+    exist, final_expect_script_path = search_existing_script(sanitized_commands)
     if exist:
         raise FileExistsError(f"{final_expect_script_path} already exists")
 
     # Remove 'just' if it's the first command
-    commands = parsed_commands.copy()
+    commands = sanitized_commands.copy()
     if commands and commands[0] == 'just':
         commands.pop(0)
 
@@ -373,10 +414,10 @@ def generate_extension_script(custom_command: str, just_commands: List[str]) -> 
         raise ValueError("No command specified")
 
     # Ensure directories exist
-    ensure_command_directories_exist(parsed_commands)
+    ensure_command_directories_exist(sanitized_commands)
 
     # Generate package init files
-    generate_package_init_files(parsed_commands)
+    generate_package_init_files(sanitized_commands)
 
     # Determine command hierarchy
     just_parent_command = f"{commands[-2]}" if len(commands) > 1 else "just"
