@@ -51,6 +51,60 @@ def find_extensions(extensions_dir: Path) -> Dict[str, List[str]]:
     return extensions
 
 
+def build_tree_structure(extensions: Dict[str, str]) -> Dict:
+    """
+    Build a hierarchical tree structure from flat command paths.
+    
+    Args:
+        extensions: Dictionary mapping command paths to file paths
+        
+    Returns:
+        Nested dictionary representing the tree structure
+    """
+    tree = {}
+    for command, file_path in extensions.items():
+        parts = command.split()
+        current = tree
+        for part in parts:
+            if part not in current:
+                current[part] = {}
+            current = current[part]
+        current['__file__'] = file_path
+    return tree
+
+
+def print_tree_node(node: Dict, prefix: str = "", is_last: bool = True):
+    """
+    Recursively print a tree node.
+    
+    Args:
+        node: Tree node dictionary
+        prefix: Current line prefix for indentation
+        is_last: Whether this is the last child
+    """
+    items = [(k, v) for k, v in node.items() if k != '__file__']
+    
+    for i, (key, value) in enumerate(items):
+        is_last_item = (i == len(items) - 1)
+        connector = "└──" if is_last_item else "├──"
+        
+        has_children = any(k != '__file__' for k in value.keys())
+        is_command = '__file__' in value
+        
+        if has_children:
+            echo(f"{prefix}{connector} ", end='')
+            yellow(key)
+        elif is_command:
+            echo(f"{prefix}{connector} ", end='')
+            blue(key)
+        else:
+            echo(f"{prefix}{connector} {key}")
+        
+        if has_children:
+            extension = "    " if is_last_item else "│   "
+            print_tree_node(value, prefix + extension, is_last_item)
+
+
 def print_tree_structure(extensions: Dict[str, List[str]], max_width: int = 80) -> None:
     """
     Print the extensions in a tree structure.
@@ -68,57 +122,13 @@ def print_tree_structure(extensions: Dict[str, List[str]], max_width: int = 80) 
     cyan("\nJust Extensions Tree:")
     echo("=" * max_width)
 
-    # Sort commands for consistent output
-    sorted_commands = sorted(extensions.keys())
-
-    # Track which top-level commands we've seen
-    top_level_commands = set()
-
-    for command in sorted_commands:
-        parts = command.split()
-
-        if len(parts) == 1:
-            # Top-level command
-            if parts[0] not in top_level_commands:
-                green(f"\n📦 {parts[0]}")
-                top_level_commands.add(parts[0])
-
-        elif len(parts) == 2:
-            # Two-level command (e.g., docker ip)
-            top_cmd = parts[0]
-            sub_cmd = parts[1]
-            file_path = extensions[command]
-
-            # Check if we need to print the top-level command again
-            if top_cmd not in top_level_commands:
-                green(f"\n📦 {top_cmd}")
-                top_level_commands.add(top_cmd)
-
-            green(f"  └── {sub_cmd}")
-
-            # Show file info in a compact format
-            rel_path = Path(file_path).relative_to(get_extension_dir())
-            echo(f"      📄 {rel_path}")
-
-        else:
-            # Multi-level command (e.g., api v1 users get)
-            all_parts = parts
-            top_cmd = all_parts[0]
-
-            # Check if we need to print the top-level command
-            if top_cmd not in top_level_commands:
-                green(f"\n📦 {top_cmd}")
-
-            # Print nested structure
-            indent = "  "
-            for i, part in enumerate(all_parts[1:], 1):
-                connector = "└──" if i == len(all_parts[1:]) else "├──"
-                green(f"{indent}{connector} {part}")
-                indent += "    " if i == len(all_parts[1:]) else "│   "
-
-            # Show file info
-            rel_path = Path(extensions[command]).relative_to(get_extension_dir())
-            echo(f"{indent}    📄 {rel_path}")
+    tree = build_tree_structure(extensions)
+    
+    top_commands = sorted(tree.keys())
+    for top_cmd in top_commands:
+        echo("\n📦 ", end='')
+        yellow(top_cmd)
+        print_tree_node(tree[top_cmd], prefix="  ", is_last=True)
 
     echo()
     echo("=" * max_width)
