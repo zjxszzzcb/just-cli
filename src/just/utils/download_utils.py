@@ -69,6 +69,20 @@ def _download_formatter(completed, total, _elapsed, _unit, speed=None, _eta=None
         return f"{completed_formatted}/{total_formatted}"
 
 
+def _is_compressed_response(headers: Dict[str, str]) -> bool:
+    """
+    Check if response is compressed.
+    
+    Args:
+        headers: Response headers
+        
+    Returns:
+        True if response is compressed, False otherwise
+    """
+    encoding = headers.get('content-encoding', '').lower()
+    return encoding in ['gzip', 'br', 'deflate', 'compress']
+
+
 def _get_total_file_size(url: str, headers: Dict[str, str], verbose: bool = False) -> int:
     """
     Get the total file size by making HEAD request and fallback to range request if needed.
@@ -194,19 +208,11 @@ def download_with_resume(
     # Use a temporary file name during download to avoid conflicts
     temp_file = output_file + ".tmp"
 
-    # Remove any existing temporary file
-    if os.path.exists(temp_file):
-        try:
-            os.remove(temp_file)
-        except OSError as e:
-            raise FileSystemError(f"Failed to remove existing temp file: {e}") from e
-
-    # Check if file already exists for resuming
+    # Check if final file already exists and is complete
     if os.path.exists(output_file):
-        # Check if file is already completely downloaded
         existing_file_size = os.path.getsize(output_file)
         if verbose:
-            echo.info(f"File exists with size: {existing_file_size} bytes")
+            echo.info(f"Final file exists with size: {existing_file_size} bytes")
 
         # Get the total file size
         total_size = _get_total_file_size(url, headers, verbose)
@@ -214,63 +220,94 @@ def download_with_resume(
         if existing_file_size == total_size and total_size > 0:
             echo.info(f"File already exists and is complete: {output_file}")
             return True
-        elif verbose:
-            echo.info(f"File size mismatch - existing: {existing_file_size}, total: {total_size}")
-
-        # Check if existing file is larger than remote file
-        if existing_file_size >= total_size > 0:
-            # Import confirm_action here to avoid circular imports
-            from just.utils.user_interaction import confirm_action
-            if confirm_action(f"Local file ({existing_file_size} bytes) is larger than or equal to remote file ({total_size} bytes). Delete and re-download?"):
-                try:
-                    os.remove(output_file)
-                except OSError as e:
-                    raise FileSystemError(f"Failed to delete existing file: {e}") from e
-                first_byte = 0
-                mode = "wb"
-            else:
-                raise DownloadCancelledError("Download cancelled by user")
         else:
-            # File exists but is not complete, resume download
-            first_byte = existing_file_size
-            mode = "ab"
+            # Final file exists but incomplete/corrupted, remove it
+            if verbose:
+                echo.info(f"Final file is incomplete or corrupted, removing it")
+            try:
+                os.remove(output_file)
+            except OSError as e:
+                raise FileSystemError(f"Failed to remove incomplete file: {e}") from e
 
-        if verbose:
-            echo.info(
-                f"Found existing file: {first_byte} bytes, "
-                f"mode: {mode}"
-            )
-    elif os.path.exists(temp_file):
-        # If temporary file exists, check its size
+    # Check if temporary file exists for resuming
+    if os.path.exists(temp_file):
         first_byte = os.path.getsize(temp_file)
-        mode = "ab"
         if verbose:
-            echo.info(
-                f"Found temporary file: {first_byte} bytes, "
-                f"mode: {mode}"
+            echo.info(f"Found temporary file: {first_byte} bytes")
+
+        # Check if server returns compressed data by testing with a small range request
+        try:
+            if verbose:
+                echo.info(f"Testing if server returns compressed data")
+            test_response = httpx.get(
+                url,
+                headers={**headers, 'Range': 'bytes=0-0'},
+                follow_redirects=True,
+                timeout=30.0
             )
-
-        # Get the total file size
-        total_size = _get_total_file_size(url, headers, verbose)
-
-        # Check if temporary file is larger than or equal to remote file
-        if first_byte >= total_size > 0:
-            # Import confirm_action here to avoid circular imports
-            from just.utils.user_interaction import confirm_action
-            if confirm_action(f"Temporary file ({first_byte} bytes) is larger than or equal to remote file ({total_size} bytes). Delete and re-download?"):
+            
+            is_compressed = _is_compressed_response(test_response.headers)
+            
+            if verbose:
+                encoding = test_response.headers.get('content-encoding', 'none')
+                echo.info(f"Server content-encoding: {encoding}, is_compressed: {is_compressed}")
+            
+            if is_compressed:
+                echo.info(
+                    f"Server returns compressed data (faster download). "
+                    f"Removing temporary file to start fresh download."
+                )
                 try:
                     os.remove(temp_file)
                 except OSError as e:
                     raise FileSystemError(f"Failed to delete temporary file: {e}") from e
                 first_byte = 0
                 mode = "wb"
+                total_size = 0
+                if verbose:
+                    echo.info(f"Starting fresh download with compression")
             else:
-                raise DownloadCancelledError("Download cancelled by user")
+                # Server returns uncompressed data, can safely resume
+                # Get the total file size
+                total_size = _get_total_file_size(url, headers, verbose)
+
+                # Check if temporary file is larger than or equal to remote file
+                if first_byte >= total_size > 0:
+                    from just.utils.user_interaction import confirm_action
+                    if confirm_action(f"Temporary file ({first_byte} bytes) is larger than or equal to remote file ({total_size} bytes). Delete and re-download?"):
+                        try:
+                            os.remove(temp_file)
+                        except OSError as e:
+                            raise FileSystemError(f"Failed to delete temporary file: {e}") from e
+                        first_byte = 0
+                        mode = "wb"
+                    else:
+                        raise DownloadCancelledError("Download cancelled by user")
+                else:
+                    # Resume download from temporary file
+                    mode = "ab"
+                    echo.info(f"Server returns uncompressed data. Resuming from byte {first_byte}")
+                    if verbose:
+                        echo.info(f"Resuming download from byte {first_byte}")
+                        
+        except httpx.RequestError as e:
+            if verbose:
+                echo.info(f"Failed to test compression, assuming fresh download: {e}")
+            # If we can't test, start fresh to be safe
+            try:
+                os.remove(temp_file)
+            except OSError:
+                pass
+            first_byte = 0
+            mode = "wb"
+            total_size = 0
     else:
         # Fresh download
         first_byte = 0
         mode = "wb"
         total_size = 0  # Will be determined later
+        if verbose:
+            echo.info(f"Starting fresh download")
 
     # Prepare headers for initial request
     request_headers = headers.copy()
@@ -336,25 +373,9 @@ def download_with_resume(
             # If download is successful, rename temporary file to final name
             if success:
                 try:
-                    if mode == "ab" and first_byte > 0:
-                        # For resumed downloads, append the new content to existing file
-                        if os.path.exists(output_file):
-                            # Append temp file content to existing file
-                            with open(temp_file, 'rb') as src, open(output_file, 'ab') as dst:
-                                while True:
-                                    chunk = src.read(chunk_size)
-                                    if not chunk:
-                                        break
-                                    dst.write(chunk)
-                            # Remove temporary file
-                            os.remove(temp_file)
-                        else:
-                            # Rename temp file to final name
-                            os.rename(temp_file, output_file)
-                    else:
-                        # For fresh downloads, simply rename temp file to final name
-                        os.rename(temp_file, output_file)
-                    echo.info(f"Download completed and renamed to: {output_file}")
+                    os.rename(temp_file, output_file)
+                    if verbose:
+                        echo.info(f"Download completed and renamed to: {output_file}")
                 except OSError as e:
                     raise FileSystemError(f"Failed to finalize downloaded file: {e}") from e
 
@@ -439,12 +460,12 @@ def _handle_server_no_range_support(
 
         # If download is successful, rename temporary file to final name
         if success:
-            # Remove existing file if it exists
-            if os.path.exists(output_file):
-                os.remove(output_file)
-            # Rename temp file to final name
-            os.rename(temp_file, output_file)
-            echo.info(f"Download completed and renamed to: {output_file}")
+            try:
+                os.rename(temp_file, output_file)
+                if verbose:
+                    echo.info(f"Download completed and renamed to: {output_file}")
+            except OSError as e:
+                raise FileSystemError(f"Failed to finalize downloaded file: {e}") from e
 
         return success
 
