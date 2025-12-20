@@ -549,8 +549,12 @@ def _download_stream(
         TransferSpeedColumn()  # Shows download speed
     ]
 
+    # Ensure total_size is valid (non-negative) before passing to progress bar
+    # If total_size is negative, set it to 0 to avoid "total must be greater than or equal to 0" error
+    validated_total_size = max(0, total_size)
+    
     progress_kwargs = {
-        "total": total_size,
+        "total": validated_total_size,
         "desc": "Downloading",
         "unit": "b",
         "progress_desc_columns": download_columns,
