@@ -9,14 +9,16 @@ __all__ = ["ext_cli"]
 # Import commands after ext_cli is created to avoid circular imports
 def _load_commands():
     """Lazy load all extension commands"""
-    from . import add, edit, list
+    from . import add, edit, list, remove
     from .add import add_extension
     from .edit import edit_extension
     from .list import list_extensions
+    from .remove import remove_extension
 
     # Register commands
     ext_cli.command(name="add", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})(add_extension)
     ext_cli.command(name="edit")(edit_extension)
     ext_cli.command(name="list")(list_extensions)
+    ext_cli.command(name="remove")(remove_extension)
 
 _load_commands()

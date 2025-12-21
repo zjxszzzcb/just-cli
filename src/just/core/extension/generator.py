@@ -1,5 +1,4 @@
 import os
-from inspect import cleandoc
 from pathlib import Path
 from typing import List, Tuple
 
@@ -7,6 +6,7 @@ from just.core.config import get_extension_dir, get_command_dir
 from just.core.extension.parser import parse_command_structure, Argument
 from just.core.extension.utils import search_existing_script
 from just.core.extension.validator import sanitize_command_path, validate_command_names
+from just.utils.format_utils import docstring
 
 
 def validate_command_input(just_commands: List[str]) -> None:
@@ -123,7 +123,7 @@ def generate_package_init_files(just_commands: List[str]) -> None:
                 parent_init_file = Path(os.path.join(commands_dir, commands[0], '__init__.py'))
                 if parent_init_file.exists():
                     # Import from commands directory instead of creating new CLI
-                    content = cleandoc(f"""
+                    content = docstring(f"""
                     from just.commands.{commands[0]} import {commands[0]}_cli
 
 
@@ -131,7 +131,7 @@ def generate_package_init_files(just_commands: List[str]) -> None:
                     """)
                 else:
                     # Create new CLI as usual
-                    content = cleandoc(f"""
+                    content = docstring(f"""
                     from just import just_cli, create_typer_app
 
 
@@ -142,7 +142,7 @@ def generate_package_init_files(just_commands: List[str]) -> None:
                     __all__ = ["{commands[0]}_cli"]
                     """)
             else:
-                content = cleandoc(f"""
+                content = docstring(f"""
                 from just import create_typer_app
 
                 from .. import {commands[i-1]}_cli
@@ -218,12 +218,25 @@ def generate_function_signature(arguments: List[Argument], options: dict) -> str
                 default_assignment = f" = {opt.default_value}"
         # Determine if it's a boolean flag option
         elif opt.type.__name__ == 'bool':
-            # Boolean flag without explicit default - treat as False default
-            default_assignment = " = False"
+            # Boolean flag without explicit default - treat as True default
+            # When True (enabled), keep placeholder; when False (disabled), remove it
+            default_assignment = " = True"
+
+        # Build flag arguments - support alias syntax
+        if opt.is_append_option:
+            # For append options, use variable_name as the user-facing flag
+            # Convert underscores back to hyphens for CLI convention
+            user_flag = '--' + var_name.replace('_', '-')
+            flag_args = repr(user_flag)
+        elif opt.flags:  # Use flags property if available (short and/or long)
+            flag_args = ', '.join(repr(f) for f in opt.flags)
+        else:
+            # Fallback to flag name
+            flag_args = repr(f'--{flag}')
 
         all_params.append(
             f"    {var_name}: Annotated[{opt.type.__name__}, typer.Option(\n"
-            f"        {repr(f'--{flag}')},\n"
+            f"        {flag_args},\n"
             f"        help={repr(opt.help)},\n"
             f"        show_default=False\n"
             f"    )]{default_assignment}"
@@ -286,19 +299,47 @@ def generate_command_replacements(arguments: List[Argument], options: dict) -> s
     # Generate replacements for options
     for flag, opt in options.items():
         var_name = name_mapping[opt.name]
-        # For boolean flags, only add the flag if True
-        if opt.type.__name__ == 'bool':
-            command_replacements.append(
-                f"    if {var_name}:"
-            )
-            # For boolean flags, we typically just want to include the flag itself, not its value
-            command_replacements.append(
-                f"        command = command.replace({repr(opt.repl_identifier)}, '{opt.repl_identifier}')"
-            )
+        
+        # Check if this is an append option (no placeholder, append to command)
+        if opt.is_append_option:
+            # For append options, add the original flag and value to the command
+            original_flag = opt.original_flag
+            if opt.type.__name__ == 'bool':
+                # Bool append: only add flag when True
+                command_replacements.append(
+                    f"    if {var_name}:"
+                )
+                command_replacements.append(
+                    f"        command = command + ' {original_flag}'"
+                )
+            else:
+                # Non-bool append: add flag and value if provided
+                if opt.default_value is None:
+                    # Required option - always append
+                    command_replacements.append(
+                        f"    command = command + f' {original_flag} {{{var_name}}}'"
+                    )
+                else:
+                    # Optional - only append if different from default
+                    command_replacements.append(
+                        f"    if {var_name} is not None:"
+                    )
+                    command_replacements.append(
+                        f"        command = command + f' {original_flag} {{{var_name}}}'"
+                    )
         else:
-            command_replacements.append(
-                f"    command = command.replace({repr(opt.repl_identifier)}, str({var_name}))"
-            )
+            # Normal replacement option
+            if opt.type.__name__ == 'bool':
+                command_replacements.append(
+                    f"    if not {var_name}:"
+                )
+                command_replacements.append(
+                    f"        command = command.replace({repr(opt.repl_identifier)}, '')"
+                )
+            else:
+                command_replacements.append(
+                    f"    command = command.replace({repr(opt.repl_identifier)}, str({var_name}))"
+                )
 
     if command_replacements:
         command_replacements[0] = command_replacements[0].lstrip()
@@ -327,14 +368,32 @@ def assemble_typer_script_content(
     Returns:
         Complete script content
     """
-    template = '''import shlex
-import subprocess
-import typer
+    # Prepare imports based on parent command
+    if parent_cmd == "just":
+        parent_imports = "from just import just_cli, create_typer_app"
+    else:
+        parent_imports = f"from just import create_typer_app\nfrom . import {parent_cmd}_cli"
+
+    # Prepare replacements block with proper indentation
+    replacements_block = ""
+    if replacements:
+        lines = []
+        for line in replacements.split('\n'):
+            if line.strip():
+                if not line.startswith('    '):
+                    line = '    ' + line
+                lines.append(line)
+        replacements_block = "\n".join(lines) + "\n"
+
+    # Use a clean f-string template for the script content
+    script_content = \
+f"""import subprocess
+import sys
 
 from typing_extensions import Annotated
+import typer
 
-from just import create_typer_app
-from . import {parent_cmd}_cli
+{parent_imports}
 
 
 {sub_cmd}_cli = create_typer_app()
@@ -344,34 +403,33 @@ from . import {parent_cmd}_cli
 
 @{sub_cmd}_cli.command(name="{sub_cmd}")
 def main(
-{signature}
+{signature.rstrip()}
 ):
-    command = r"""
+    command = r\"\"\"
     {custom_command}
-    """.strip()
-    {replacements}
-    subprocess.run(shlex.split(command))
-'''
-
-    return template.format(
-        custom_command=custom_command,
-        parent_cmd=parent_cmd,
-        sub_cmd=sub_cmd,
-        signature=signature.rstrip('\n'),
-        replacements=replacements
-    )
+    \"\"\".strip()
+{replacements_block}
+    # Use shell=True for cross-platform compatibility (Windows shell built-ins like echo)
+    subprocess.run(command, shell=True)
+"""
+    return script_content
 
 
-def generate_extension_script(custom_command: str, just_commands: List[str]) -> None:
+def generate_extension_script(
+    custom_command: str,
+    just_commands: List[str],
+    overwrite: bool = False
+):
     """
     Generate a complete extension script.
 
     Args:
         custom_command: The original command template
         just_commands: List of command parts
+        overwrite: If True, overwrite existing script
 
     Raises:
-        FileExistsError: If the script already exists
+        FileExistsError: If the script already exists and overwrite is False
         ValueError: If command structure is invalid
     """
     # Validate input
@@ -402,8 +460,9 @@ def generate_extension_script(custom_command: str, just_commands: List[str]) -> 
 
     # Check if script already exists
     exist, final_expect_script_path = search_existing_script(sanitized_commands)
-    if exist:
+    if exist and not overwrite:
         raise FileExistsError(f"{final_expect_script_path} already exists")
+
 
     # Remove 'just' if it's the first command
     commands = sanitized_commands.copy()
@@ -444,3 +503,6 @@ def generate_extension_script(custom_command: str, just_commands: List[str]) -> 
 
     with open(script_path, 'w', encoding='utf-8') as f:
         f.write(content)
+
+    # Return script path and command list for caller
+    return script_path, commands
