@@ -37,6 +37,10 @@ def download_command(
     verbose: Annotated[bool, typer.Option(
         "--verbose", "-v",
         help="Enable verbose logging"
+    )] = False,
+    yes: Annotated[bool, typer.Option(
+        "--yes", "-y",
+        help="Skip confirmation prompts"
     )] = False
 ) -> None:
     """
@@ -52,7 +56,8 @@ def download_command(
             url=url,
             headers=parse_headers(headers),
             output_file=output,
-            verbose=verbose
+            verbose=verbose,
+            auto_confirm=yes
         )
     except DownloadCancelledError as e:
         echo.info(str(e))

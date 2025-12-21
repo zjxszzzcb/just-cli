@@ -166,7 +166,8 @@ def download_with_resume(
     headers: Optional[Dict[str, str]] = None,
     output_file: Optional[str] = None,
     chunk_size: int = 65536,
-    verbose: bool = False
+    verbose: bool = False,
+    auto_confirm: bool = False
 ) -> bool:
     """
     Download file with resume support and unified progress bar.
@@ -177,6 +178,7 @@ def download_with_resume(
         output_file: Output file path (optional, extracted from URL if not provided)
         chunk_size: Chunk size for downloading (default: 65536)
         verbose: Enable verbose logging (default: False)
+        auto_confirm: Auto-confirm prompts without user interaction (default: False)
         
     Raises:
         NetworkError: When network-related errors occur
@@ -273,8 +275,12 @@ def download_with_resume(
 
                 # Check if temporary file is larger than or equal to remote file
                 if first_byte >= total_size > 0:
-                    from just.utils.user_interaction import confirm_action
-                    if confirm_action(f"Temporary file ({first_byte} bytes) is larger than or equal to remote file ({total_size} bytes). Delete and re-download?"):
+                    should_delete = auto_confirm
+                    if not auto_confirm:
+                        from just.utils.user_interaction import confirm_action
+                        should_delete = confirm_action(f"Temporary file ({first_byte} bytes) is larger than or equal to remote file ({total_size} bytes). Delete and re-download?")
+                    
+                    if should_delete:
                         try:
                             os.remove(temp_file)
                         except OSError as e:

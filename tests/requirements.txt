@@ -1,0 +1,12 @@
+# Test dependencies for just-cli
+# This file is used by Docker to install dependencies for testing
+
+httpx>=0.24.0
+prompt-toolkit>=3.0.0
+python-dotenv>=0.9.9
+py7zr>=1.0.0
+rich>=14.0.0
+textual>=6.4.0
+typer>=0.20.0
+zstandard>=0.25.0
+hatchling
