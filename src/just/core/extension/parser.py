@@ -282,6 +282,10 @@ def _process_annotation(annotation: str, identifier: str, short_flag: str, long_
     """
     Process an annotation string and create an Argument.
     
+    Supports quoted default values:
+        var:type="default with spaces"#help
+        var:type='default with spaces'#help
+    
     Args:
         annotation: The annotation string (e.g., "var:type=default#help")
         identifier: The placeholder/identifier to replace
@@ -294,20 +298,29 @@ def _process_annotation(annotation: str, identifier: str, short_flag: str, long_
     help_msg = ""
     default_value = None
     variable_type = 'str'
+    variable_name = annotation
     
-    # Extract help message
-    if '#' in annotation:
-        annotation, help_msg = annotation.split('#', maxsplit=1)
+    # Parse annotation using regex to handle quoted values
+    # Format: var[:type][=default][#help]
+    # Default can be: unquoted, "double quoted", or 'single quoted'
+    pattern = r'^([^:=#]+)(?::([^=#]+))?(?:=("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|[^#]*))?(?:#(.*))?$'
+    match = re.match(pattern, annotation)
     
-    # Extract default value
-    if '=' in annotation:
-        annotation, default_value = annotation.split('=', maxsplit=1)
-    
-    # Extract type and variable name
-    if ':' in annotation:
-        variable_name, variable_type = annotation.split(':', maxsplit=1)
-    else:
-        variable_name = annotation
+    if match:
+        variable_name = match.group(1) or ""
+        variable_type = match.group(2) or 'str'
+        raw_default = match.group(3)
+        help_msg = match.group(4) or ""
+        
+        # Process default value - strip quotes if present
+        if raw_default is not None:
+            raw_default = raw_default.strip()
+            if (raw_default.startswith('"') and raw_default.endswith('"')) or \
+               (raw_default.startswith("'") and raw_default.endswith("'")):
+                # Remove quotes and unescape
+                default_value = raw_default[1:-1].replace('\\"', '"').replace("\\'", "'")
+            else:
+                default_value = raw_default if raw_default else None
     
     # Convert default value to appropriate type
     if default_value is not None:
