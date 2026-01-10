@@ -170,13 +170,18 @@ def generate_function_signature(arguments: List[Argument], options: dict) -> str
     Returns:
         Formatted function signature string
     """
-    all_params = []
+    # Collect all parameters with their default status for sorting
+    params_without_default = []
+    params_with_default = []
 
     # Track variable names to avoid duplicates
     used_names = set()
 
-    # Add arguments
+    # Add arguments (skip varargs - they use ctx.args instead)
     for arg in arguments:
+        if arg.is_varargs:
+            continue  # Varargs are handled via ctx.args, not function parameter
+        
         # Ensure unique variable names
         var_name = arg.name
         counter = 1
@@ -186,18 +191,27 @@ def generate_function_signature(arguments: List[Argument], options: dict) -> str
         used_names.add(var_name)
 
         default_assignment = ""
+        has_default = False
         if arg.default_value is not None:
+            has_default = True
             # Handle string default values properly
             if isinstance(arg.default_value, str):
                 default_assignment = f" = '{arg.default_value}'"
             else:
                 default_assignment = f" = {arg.default_value}"
-        all_params.append(
+        
+        param_str = (
             f"    {var_name}: Annotated[{arg.type.__name__}, typer.Argument(\n"
             f"        help={repr(arg.help)},\n"
             f"        show_default=False\n"
             f"    )]{default_assignment}"
         )
+        
+        if has_default:
+            params_with_default.append(param_str)
+        else:
+            params_without_default.append(param_str)
+
 
     # Add options processing
     for flag, opt in options.items():
@@ -210,7 +224,9 @@ def generate_function_signature(arguments: List[Argument], options: dict) -> str
         used_names.add(var_name)
 
         default_assignment = ""
+        has_default = False
         if opt.default_value is not None:
+            has_default = True
             # Handle string default values properly
             if isinstance(opt.default_value, str):
                 default_assignment = f" = '{opt.default_value}'"
@@ -218,6 +234,7 @@ def generate_function_signature(arguments: List[Argument], options: dict) -> str
                 default_assignment = f" = {opt.default_value}"
         # Determine if it's a boolean flag option
         elif opt.type.__name__ == 'bool':
+            has_default = True
             # Boolean flag without explicit default - treat as True default
             # When True (enabled), keep placeholder; when False (disabled), remove it
             default_assignment = " = True"
@@ -234,13 +251,21 @@ def generate_function_signature(arguments: List[Argument], options: dict) -> str
             # Fallback to flag name
             flag_args = repr(f'--{flag}')
 
-        all_params.append(
+        param_str = (
             f"    {var_name}: Annotated[{opt.type.__name__}, typer.Option(\n"
             f"        {flag_args},\n"
             f"        help={repr(opt.help)},\n"
             f"        show_default=False\n"
             f"    )]{default_assignment}"
         )
+        
+        if has_default:
+            params_with_default.append(param_str)
+        else:
+            params_without_default.append(param_str)
+
+    # Combine: params without default first, then params with default
+    all_params = params_without_default + params_with_default
 
     # Join all parameters with commas
     if not all_params:
@@ -288,13 +313,16 @@ def generate_command_replacements(arguments: List[Argument], options: dict) -> s
             opt_counter += 1
         name_mapping[opt.name] = var_name
 
-    # Generate replacements for arguments
+    # Generate replacements for arguments (skip varargs - handled in template)
     command_replacements = []
     for arg in arguments:
+        if arg.is_varargs:
+            continue  # Varargs replacement is handled in the template
         var_name = name_mapping[arg.name]
         command_replacements.append(
             f"    command = command.replace({repr(arg.repl_identifier)}, str({var_name}))"
         )
+
 
     # Generate replacements for options
     for flag, opt in options.items():
@@ -353,7 +381,10 @@ def assemble_typer_script_content(
     parent_cmd: str,
     sub_cmd: str,
     signature: str,
-    replacements: str
+    replacements: str,
+    has_varargs: bool = False,
+    varargs_identifier: str = "",
+    varargs_help: str = ""
 ) -> str:
     """
     Assemble the complete Typer script content.
@@ -364,6 +395,9 @@ def assemble_typer_script_content(
         sub_cmd: Sub command name
         signature: Function signature
         replacements: Command replacement logic
+        has_varargs: Whether the command has varargs [...]
+        varargs_identifier: The placeholder to replace with varargs
+        varargs_help: Help message for varargs
 
     Returns:
         Complete script content
@@ -385,10 +419,51 @@ def assemble_typer_script_content(
                 lines.append(line)
         replacements_block = "\n".join(lines) + "\n"
 
-    # Use a clean f-string template for the script content
-    script_content = \
+    # Generate different templates based on varargs mode
+    if has_varargs:
+        # Varargs mode: use context_settings to capture all unknown args
+        script_content = \
 f"""import subprocess
 import sys
+
+import typer
+
+{parent_imports}
+
+
+{sub_cmd}_cli = create_typer_app()
+# Add the CLI to the parent CLI
+{parent_cmd}_cli.add_typer({sub_cmd}_cli)
+
+
+@{sub_cmd}_cli.command(
+    name="{sub_cmd}",
+    context_settings={{"allow_extra_args": True, "ignore_unknown_options": True}},
+    options_metavar="[ARGS]... [OPTIONS]"
+)
+def main(
+    ctx: typer.Context,
+{signature.rstrip()}
+):
+    \"\"\"
+    [ARGS]...  {varargs_help if varargs_help else "Accepts any additional arguments."}
+    \"\"\"
+    # Capture all unknown arguments (including unknown options like -m)
+    args = ctx.args
+    command = r\"\"\"
+    {custom_command}
+    \"\"\".strip()
+    command = command.replace({repr(varargs_identifier)}, ' '.join(args))
+{replacements_block}
+    # Use shell=True for cross-platform compatibility (Windows shell built-ins like echo)
+    subprocess.run(command, shell=True)
+"""
+    else:
+        # Standard mode
+        script_content = \
+f"""import subprocess
+import sys
+from typing import List
 
 from typing_extensions import Annotated
 import typer
@@ -488,13 +563,27 @@ def generate_extension_script(
     # Generate command replacements
     replacements = generate_command_replacements(arguments, options)
 
+    # Detect varargs
+    has_varargs = any(arg.is_varargs for arg in arguments)
+    varargs_identifier = ""
+    varargs_help = ""
+    if has_varargs:
+        for arg in arguments:
+            if arg.is_varargs:
+                varargs_identifier = arg.repl_identifier
+                varargs_help = arg.help_msg
+                break
+
     # Assemble final content
     content = assemble_typer_script_content(
         custom_command,
         just_parent_command,
         just_sub_command,
         signature,
-        replacements
+        replacements,
+        has_varargs=has_varargs,
+        varargs_identifier=varargs_identifier,
+        varargs_help=varargs_help
     )
 
     # Write the script file

@@ -22,7 +22,7 @@ Extensions work by **template replacement** - you define placeholders in your co
 
 ## Syntax Patterns
 
-There are **3 core patterns** for defining extension parameters:
+There are **4 core patterns** for defining extension parameters:
 
 ### 1. Positional Arguments (Replace Placeholder)
 
@@ -127,6 +127,37 @@ just ext add docker run IMAGE
 # Usage:
 just docker run nginx --detach
 # Executes: docker run nginx --detach
+```
+
+---
+
+### 4. Varargs (Capture All Unknown Arguments)
+
+```
+PLACEHOLDER[...]
+PLACEHOLDER[...#help]
+```
+
+Captures **all unknown arguments**, including unknown options like `-m` or `--foo`.
+Similar to `argparse.parse_known_args()`.
+
+**Examples:**
+
+```bash
+# Basic varargs
+just ext add echo ARGS
+> just echo ARGS[...]
+
+# Usage - all unknown args are captured:
+just echo hello world
+# Executes: echo hello world
+
+just echo -m hello --verbose
+# Executes: echo -m hello --verbose
+
+# With help text
+just ext add git commit FILES
+> just git commit FILES[...#Files to commit]
 ```
 
 ---

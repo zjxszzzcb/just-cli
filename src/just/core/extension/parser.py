@@ -21,6 +21,8 @@ class Argument:
     help_msg: str
     short_flag: str = ""   # Short option flag (e.g., "-n")
     long_flag: str = ""    # Long option flag (e.g., "--no-newline")
+    is_varargs: bool = False  # True for [...] syntax - captures all remaining args
+
 
     @property
     def name(self):
@@ -282,9 +284,10 @@ def _process_annotation(annotation: str, identifier: str, short_flag: str, long_
     """
     Process an annotation string and create an Argument.
     
-    Supports quoted default values:
-        var:type="default with spaces"#help
-        var:type='default with spaces'#help
+    Supports:
+        var:type="default with spaces"#help  - quoted defaults
+        ...                                   - varargs (all remaining args)
+        ...#help                              - varargs with help text
     
     Args:
         annotation: The annotation string (e.g., "var:type=default#help")
@@ -299,54 +302,66 @@ def _process_annotation(annotation: str, identifier: str, short_flag: str, long_
     default_value = None
     variable_type = 'str'
     variable_name = annotation
+    is_varargs = False
     
-    # Parse annotation using regex to handle quoted values
-    # Format: var[:type][=default][#help]
-    # Default can be: unquoted, "double quoted", or 'single quoted'
-    pattern = r'^([^:=#]+)(?::([^=#]+))?(?:=("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|[^#]*))?(?:#(.*))?$'
-    match = re.match(pattern, annotation)
-    
-    if match:
-        variable_name = match.group(1) or ""
-        variable_type = match.group(2) or 'str'
-        raw_default = match.group(3)
-        help_msg = match.group(4) or ""
+    # Check for varargs syntax: [...] or [...#help]
+    if annotation.startswith('...'):
+        is_varargs = True
+        variable_name = 'args'
+        variable_type = 'list'
+        # Extract help message if present
+        if '#' in annotation:
+            help_msg = annotation.split('#', 1)[1]
+    else:
+        # Parse normal annotation using regex to handle quoted values
+        # Format: var[:type][=default][#help]
+        pattern = r'^([^:=#]+)(?::([^=#]+))?(?:=("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|[^#]*))?(?:#(.*))?$'
+        match = re.match(pattern, annotation)
         
-        # Process default value - strip quotes if present
-        if raw_default is not None:
-            raw_default = raw_default.strip()
-            if (raw_default.startswith('"') and raw_default.endswith('"')) or \
-               (raw_default.startswith("'") and raw_default.endswith("'")):
-                # Remove quotes and unescape
-                default_value = raw_default[1:-1].replace('\\"', '"').replace("\\'", "'")
-            else:
-                default_value = raw_default if raw_default else None
-    
-    # Convert default value to appropriate type
-    if default_value is not None:
-        if variable_type == 'int':
-            try:
-                default_value = int(default_value)
-            except ValueError:
-                pass
-        elif variable_type == 'float':
-            try:
-                default_value = float(default_value)
-            except ValueError:
-                pass
-        elif variable_type == 'bool':
-            default_value = default_value.lower() in ('true', '1', 'yes', 'on')
+        if match:
+            variable_name = match.group(1) or ""
+            variable_type = match.group(2) or 'str'
+            raw_default = match.group(3)
+            help_msg = match.group(4) or ""
+            
+            # Process default value - strip quotes if present
+            if raw_default is not None:
+                raw_default = raw_default.strip()
+                if (raw_default.startswith('"') and raw_default.endswith('"')) or \
+                   (raw_default.startswith("'") and raw_default.endswith("'")):
+                    default_value = raw_default[1:-1].replace('\\"', '"').replace("\\'", "'")
+                else:
+                    default_value = raw_default if raw_default else None
+        
+        # Convert default value to appropriate type
+        if default_value is not None:
+            if variable_type == 'int':
+                try:
+                    default_value = int(default_value)
+                except ValueError:
+                    pass
+            elif variable_type == 'float':
+                try:
+                    default_value = float(default_value)
+                except ValueError:
+                    pass
+            elif variable_type == 'bool':
+                default_value = default_value.lower() in ('true', '1', 'yes', 'on')
     
     # Sanitize variable_name to be a valid Python identifier
-    # Strip leading dashes and convert hyphens to underscores
     variable_name = variable_name.lstrip('-').replace('-', '_')
+    
+    # Handle list type for varargs
+    actual_type = list if variable_type == 'list' else TYPES.get(variable_type, str)
     
     return Argument(
         repl_identifier=identifier,
         variable_name=variable_name,
-        variable_type=TYPES[variable_type],
+        variable_type=actual_type,
         default_value=default_value,
         help_msg=help_msg,
         short_flag=short_flag,
-        long_flag=long_flag
+        long_flag=long_flag,
+        is_varargs=is_varargs
     )
+
