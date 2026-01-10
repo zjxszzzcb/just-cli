@@ -28,7 +28,7 @@ def ensure_config_dir_exists() -> Path:
 
 def get_extension_dir() -> Path:
     """Get user extensions directory path"""
-    return Path(__file__).parent.parent.parent / "extensions"
+    return get_config_dir() / "extensions"
 
 
 def get_command_dir() -> Path:

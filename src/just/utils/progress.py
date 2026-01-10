@@ -20,7 +20,7 @@ class ProgressBarBase(ABC):
             raise ValueError("total must be provided when iterable is None")
 
         # total must be greater than or equal to 0
-        if total is not None and total <= 0:
+        if total is not None and total < 0:
             raise ValueError("total must be greater than or equal to 0")
 
         if iterable and total is not None and total != len(iterable):

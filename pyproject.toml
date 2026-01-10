@@ -1,6 +1,6 @@
 [project]
 name = "just-cli"
-version = "0.1.0"
+version = "0.2.0"
 description = "Your all-in-one CLI Toolkit"
 readme = "README.md"
 authors = [
@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     "httpx",
+    "prompt-toolkit>=3.0.0",
     "python-dotenv",
     "py7zr",
     "rich>=14.2.0",

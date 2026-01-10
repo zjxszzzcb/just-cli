@@ -109,8 +109,13 @@ def run_actual_tests():
         print(f"❌ Tests failed in {duration:.2f}s")
         return False
 
-def run_docker_tests(project_root):
-    """Run tests inside Docker."""
+def run_docker_tests(project_root, proxy: str = ""):
+    """Run tests inside Docker.
+    
+    Args:
+        project_root: Path to the project root directory
+        proxy: Optional proxy URL (e.g., http://proxy:port)
+    """
     print("\n🐳 Running tests in Docker...")
     
     dockerfile_path = project_root / 'tests' / 'Dockerfile'
@@ -118,12 +123,25 @@ def run_docker_tests(project_root):
         print(f"❌ Dockerfile not found at {dockerfile_path}")
         return False
 
+    # Use command line proxy first, then fall back to environment variables
+    if proxy:
+        http_proxy = proxy
+        https_proxy = proxy
+    else:
+        http_proxy = os.environ.get('HTTP_PROXY', os.environ.get('http_proxy', ''))
+        https_proxy = os.environ.get('HTTPS_PROXY', os.environ.get('https_proxy', ''))
+    
+    if http_proxy or https_proxy:
+        print(f"   Using proxy: HTTP={http_proxy or 'none'}, HTTPS={https_proxy or 'none'}")
+
     # Build image
     print("   Building Docker image...")
     build_cmd = [
         "docker", "build",
         "-t", "just-cli-test",
         "-f", str(dockerfile_path),
+        "--build-arg", f"HTTP_PROXY={http_proxy}",
+        "--build-arg", f"HTTPS_PROXY={https_proxy}",
         str(project_root)
     ]
     
@@ -153,8 +171,28 @@ def run_docker_tests(project_root):
         return False
 
 def main():
-    parser = argparse.ArgumentParser(description="JUST CLI Test Runner")
-    parser.add_argument("--worker", action="store_true", help="Run in worker mode (execute tests)")
+    parser = argparse.ArgumentParser(
+        description="JUST CLI Test Runner",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python run_tests.py                    # Run all tests (Docker + Local)
+  python run_tests.py --proxy http://127.0.0.1:7890
+  python run_tests.py --worker           # Run tests directly (no Docker)
+"""
+    )
+    parser.add_argument(
+        "--worker", 
+        action="store_true", 
+        help="Run in worker mode (execute tests directly, no Docker)"
+    )
+    parser.add_argument(
+        "--proxy", "-p",
+        type=str,
+        default="http://host.docker.internal:7890",
+        metavar="URL",
+        help="Proxy URL for Docker build (e.g., http://host.docker.internal:7890)"
+    )
     args = parser.parse_args()
 
     if args.worker:
@@ -165,7 +203,7 @@ def main():
         project_root = Path(__file__).resolve().parent.parent
         
         # 1. Run Docker Tests
-        docker_success = run_docker_tests(project_root)
+        docker_success = run_docker_tests(project_root, proxy=args.proxy)
         
         # 2. Run Local Tests if Windows
         local_success = True

@@ -114,6 +114,10 @@ def remove_files(
     recursive: Annotated[bool, typer.Option(
         "--recursive", "-r",
         help="Remove directories and their contents recursively"
+    )] = False,
+    yes: Annotated[bool, typer.Option(
+        "--yes", "-y",
+        help="Skip confirmation prompts"
     )] = False
 ):
     """
@@ -126,7 +130,7 @@ def remove_files(
             exit(1)
         if target_path.is_dir():
             # Prompt for confirmation when removing directory without -r
-            if not recursive and not confirm_action(f"rm: descend into directory '{target}'?"):
+            if not recursive and not yes and not confirm_action(f"rm: descend into directory '{target}'?"):
                 continue
             shutil.rmtree(target_path)
         else:
@@ -147,6 +151,10 @@ def copy_files(
     recursive: Annotated[bool, typer.Option(
         "--recursive", "-r",
         help="Copy directories recursively"
+    )] = False,
+    yes: Annotated[bool, typer.Option(
+        "--yes", "-y",
+        help="Skip confirmation prompts"
     )] = False
 ):
     """
@@ -163,7 +171,7 @@ def copy_files(
     if source_path.is_dir():
         if not recursive:
             # Prompt for confirmation when copying directory without -r
-            if not confirm_action(f"cp: -r not specified; omitting directory '{source}'"):
+            if not yes and not confirm_action(f"cp: -r not specified; omitting directory '{source}'"):
                 exit(1)
         if dest_path.exists() and dest_path.is_dir():
             # Copy directory into existing directory
@@ -184,7 +192,11 @@ def move_files(
     destination: Annotated[str, typer.Argument(
         help="Destination file or directory",
         show_default=False
-    )]
+    )],
+    yes: Annotated[bool, typer.Option(
+        "--yes", "-y",
+        help="Skip confirmation prompts"
+    )] = False
 ):
     """
     Move or rename files or directories.
@@ -195,7 +207,7 @@ def move_files(
     if not source_path.exists():
         echo.red(f"mv: cannot stat '{source}': No such file or directory")
         exit(1)
-    if dest_path.exists() and not confirm_action(f"mv: overwrite '{destination}'?"):
+    if dest_path.exists() and not yes and not confirm_action(f"mv: overwrite '{destination}'?"):
         exit(1)
 
     shutil.move(str(source_path), str(dest_path))

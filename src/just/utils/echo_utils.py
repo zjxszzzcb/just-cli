@@ -34,11 +34,11 @@ def cyan(*args, sep: str = ' ', end: str = '\n'):
 
 
 def debug(*args, sep: str = ' ', end: str = '\n'):
-    green(f"[DEBUG] {to_string(*args, sep=sep, end=end)}", end='')
+    blue(f"[DEBUG] {to_string(*args, sep=sep, end=end)}", end='')
 
 
 def info(*args, sep: str = ' ', end: str = '\n'):
-    blue(f"[INFO] {to_string(*args, sep=sep, end=end)}", end='')
+    echo(f"[INFO] {to_string(*args, sep=sep, end=end)}", end='')
 
 
 def warning(*args, sep: str = ' ', end: str = '\n'):
@@ -67,8 +67,3 @@ def markdown(*args, sep: str = ' ', end: str = '\n'):
     # md = Markdown(text)
     # console.print(md)
     console.print(text, end="")
-
-
-if __name__ == "__main__":
-    for i in range(10):
-        debug(i)
