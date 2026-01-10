@@ -356,7 +356,10 @@ def generate_command_replacements(arguments: List[Argument], options: dict) -> s
                         f"        command = command + f' {original_flag} {{{var_name}}}'"
                     )
         else:
-            # Normal replacement option
+            # Normal replacement option or Option Alias
+            # Check if this is an Option Alias (identifier starts with '-')
+            is_option_alias = opt.repl_identifier.startswith('-')
+            
             if opt.type.__name__ == 'bool':
                 command_replacements.append(
                     f"    if not {var_name}:"
@@ -364,7 +367,31 @@ def generate_command_replacements(arguments: List[Argument], options: dict) -> s
                 command_replacements.append(
                     f"        command = command.replace({repr(opt.repl_identifier)}, '')"
                 )
+            elif is_option_alias:
+                # Option Alias: --text[-m/--msg] means:
+                # - If user provides -m value, command gets: --text value
+                # - If no value (None or empty), remove --text from command
+                if opt.default_value is not None:
+                    # Has default value - always include the flag with value
+                    command_replacements.append(
+                        f"    command = command.replace({repr(opt.repl_identifier)}, f'{opt.repl_identifier} {{{var_name}}}')"
+                    )
+                else:
+                    # No default - conditionally include flag
+                    command_replacements.append(
+                        f"    if {var_name}:"
+                    )
+                    command_replacements.append(
+                        f"        command = command.replace({repr(opt.repl_identifier)}, f'{opt.repl_identifier} {{{var_name}}}')"
+                    )
+                    command_replacements.append(
+                        f"    else:"
+                    )
+                    command_replacements.append(
+                        f"        command = command.replace({repr(opt.repl_identifier)}, '')"
+                    )
             else:
+                # Normal placeholder replacement
                 command_replacements.append(
                     f"    command = command.replace({repr(opt.repl_identifier)}, str({var_name}))"
                 )

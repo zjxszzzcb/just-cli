@@ -55,11 +55,41 @@ class Argument:
         """
         Check if this option should be appended to command rather than replacing placeholder.
         
-        True when repl_identifier is the flag itself (e.g., "-o/--output")
-        meaning no separate placeholder was provided.
+        True when:
+        - repl_identifier is the flag itself (e.g., "-o/--output")
+        - AND no separate user-facing flags are defined (short_flag/long_flag match the identifier)
+        
+        False when:
+        - User-facing flags are different from the identifier (Option Alias case)
+        - e.g., --text[-m/--messages] means replace --text with value from -m/--messages
         """
-        # If the repl_identifier starts with '-', it's an append option
-        return self.repl_identifier.startswith('-')
+        # If the repl_identifier doesn't start with '-', it's definitely a replacement option
+        if not self.repl_identifier.startswith('-'):
+            return False
+        
+        # If user-facing flags are specified and different from identifier, it's a replacement option
+        # Option Alias syntax: --original[-u/--user] means replace --original with value from -u/--user
+        if self.short_flag or self.long_flag:
+            # Check if the flags are different from the identifier (alias case)
+            identifier_flags = set()
+            if '/' in self.repl_identifier:
+                parts = self.repl_identifier.split('/')
+                identifier_flags = set(p.strip() for p in parts)
+            else:
+                identifier_flags = {self.repl_identifier}
+            
+            user_flags = set()
+            if self.short_flag:
+                user_flags.add(self.short_flag)
+            if self.long_flag:
+                user_flags.add(self.long_flag)
+            
+            # If user flags are different from identifier flags, it's a replacement option (alias)
+            if user_flags != identifier_flags:
+                return False
+        
+        # Default: if identifier starts with '-', it's an append option
+        return True
 
     @property
     def original_flag(self) -> str:
@@ -349,7 +379,30 @@ def _process_annotation(annotation: str, identifier: str, short_flag: str, long_
                 default_value = default_value.lower() in ('true', '1', 'yes', 'on')
     
     # Sanitize variable_name to be a valid Python identifier
-    variable_name = variable_name.lstrip('-').replace('-', '_')
+    # Handle flag alias syntax like -m/--messages
+    # This enables Option Alias: --text[-m/--messages:str] where user sees -m/--messages
+    raw_variable_name = variable_name
+    if variable_name.startswith('-') or ('/' in variable_name and '-' in variable_name):
+        # This looks like a flag alias syntax (e.g., -m/--messages)
+        # Extract user-facing flags from the annotation and override passed-in flags
+        alias_short, alias_long = parse_flag_syntax(raw_variable_name)
+        if alias_short or alias_long:
+            # Override with the user-facing flags from annotation
+            short_flag = alias_short
+            long_flag = alias_long
+        
+        # Extract variable name from long flag if available, otherwise from short flag
+        if alias_long:
+            # Use long flag name: --messages -> messages
+            variable_name = alias_long.lstrip('-').replace('-', '_')
+        elif alias_short:
+            # Use short flag name: -m -> m
+            variable_name = alias_short.lstrip('-')
+        else:
+            # Fallback: just sanitize as usual
+            variable_name = variable_name.lstrip('-').replace('/', '_').replace('-', '_')
+    else:
+        variable_name = variable_name.lstrip('-').replace('-', '_')
     
     # Handle list type for varargs
     actual_type = list if variable_type == 'list' else TYPES.get(variable_type, str)

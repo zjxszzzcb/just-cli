@@ -23,6 +23,11 @@ def show_success(script_path, commands):
 
 def add_extension(
     ctx: typer.Context,
+    yes: bool = typer.Option(
+        False,
+        "--yes", "-y",
+        help="Auto-confirm overwrite if extension exists"
+    ),
     tui: bool = typer.Option(
         False,
         "--tui",
@@ -77,7 +82,7 @@ def add_extension(
         show_success(script_path, ext_commands)
     except FileExistsError as e:
         echo.yellow(f"Warning: {e}")
-        if confirm_action("Do you want to overwrite the existing extension?"):
+        if yes or confirm_action("Do you want to overwrite the existing extension?"):
             script_path, ext_commands = generate_extension_script(
                 shlex.join(commands),
                 just_extension_commands,
