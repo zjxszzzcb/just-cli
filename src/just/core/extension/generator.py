@@ -452,7 +452,9 @@ def assemble_typer_script_content(
         script_content = \
 f"""import subprocess
 import sys
+from typing import List
 
+from typing_extensions import Annotated
 import typer
 
 {parent_imports}
