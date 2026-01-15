@@ -44,13 +44,7 @@ def get_command_paths(just_commands: List[str]) -> Tuple[Path, Path]:
     # Sanitize command names for file system compatibility
     sanitized_commands, transformation_notes = sanitize_command_path(commands)
 
-    # Log transformations if any
-    if transformation_notes:
-        from just import echo
-        echo.echo("\nCommand name sanitization applied:")
-        for note in transformation_notes:
-            echo.echo(f"  - {note}")
-        echo.echo("")
+    # Silently apply transformations (no logging)
 
     # Validate command names and show warnings
     warnings = validate_command_names(sanitized_commands)
@@ -545,13 +539,7 @@ def generate_extension_script(
     # Sanitize command names
     sanitized_commands, transformation_notes = sanitize_command_path(parsed_commands)
 
-    # Log transformations if any
-    if transformation_notes:
-        from just import echo
-        echo.echo("\nCommand name sanitization applied:")
-        for note in transformation_notes:
-            echo.echo(f"  - {note}")
-        echo.echo("")
+    # Silently apply transformations (no logging)
 
     # Validate command names and show warnings
     warnings = validate_command_names(sanitized_commands)
