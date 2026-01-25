@@ -9,7 +9,7 @@ def install_nvm(
     )] = ""
 ):
     """
-    Install Microsoft Edit.
+    Install nvm.
     """
     if just.system.platform == "windows":
         if not version:
