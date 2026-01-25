@@ -404,7 +404,6 @@ def _download_stream(
     if verbose:
         echo.info(f"Download completed: {bytes_written} bytes")
     
-    echo.info(f"Download completed: {output_file}")
     return True
 
 
@@ -416,6 +415,8 @@ def _finalize_download(temp_file: str, output_file: str, verbose: bool) -> None:
             echo.info(f"Renamed to: {output_file}")
     except OSError as e:
         raise FileSystemError(f"Failed to finalize: {e}") from e
+    
+    echo.info(f"Download completed: {output_file}")
 
 
 def _download_fresh(
