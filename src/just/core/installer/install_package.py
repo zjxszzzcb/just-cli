@@ -1,5 +1,7 @@
+import os
 import typer
 
+from pathlib import Path
 from typing import List, Optional
 
 from just import config
@@ -46,3 +48,75 @@ def install_package(package_name: str, additional_args: Optional[List[str]] = No
 
     app.command()(installer)
     app(additional_args)
+
+
+def list_available_installers() -> List[dict]:
+    """
+    List all available installers from the built-in installer directory.
+    
+    Returns:
+        List of dicts with 'name' and 'description' keys.
+    """
+    installers = []
+    installer_dir = get_basic_installer_dir()
+    
+    if not installer_dir.exists():
+        return installers
+    
+    for item in installer_dir.iterdir():
+        if not item.is_dir():
+            continue
+        
+        # Skip __pycache__ and other hidden directories
+        if item.name.startswith('_') or item.name.startswith('.'):
+            continue
+        
+        installer_file = item / "installer.py"
+        if not installer_file.exists():
+            continue
+        
+        # Extract description from docstring
+        description = _extract_installer_description(installer_file)
+        installers.append({
+            'name': item.name,
+            'description': description
+        })
+    
+    # Sort by name
+    installers.sort(key=lambda x: x['name'])
+    return installers
+
+
+def _extract_installer_description(installer_file: Path) -> str:
+    """
+    Extract description from installer's docstring.
+    
+    Looks for the @just.installer decorated function and extracts its docstring.
+    """
+    try:
+        content = installer_file.read_text(encoding='utf-8')
+        
+        import re
+        
+        # Find @just.installer decorator position
+        decorator_match = re.search(r'@just\.installer', content)
+        if not decorator_match:
+            return "No description available"
+        
+        # Search for docstring after the decorator
+        # Look for triple-quoted strings after the function definition
+        after_decorator = content[decorator_match.start():]
+        
+        # Match docstring: find """ or ''' followed by content
+        docstring_pattern = r'(?:"""|\'\'\')([\s\S]*?)(?:"""|\'\'\')' 
+        docstring_match = re.search(docstring_pattern, after_decorator)
+        
+        if docstring_match:
+            docstring = docstring_match.group(1).strip()
+            # Get first line of docstring
+            first_line = docstring.split('\n')[0].strip()
+            return first_line if first_line else "No description available"
+        
+        return "No description available"
+    except Exception:
+        return "No description available"

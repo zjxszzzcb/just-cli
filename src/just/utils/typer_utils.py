@@ -1,6 +1,32 @@
 import typer
+from click import Context
+from typer.core import TyperGroup
 
 from typing import Optional
+
+
+import re
+
+
+class NormalizedGroup(TyperGroup):
+    """
+    A custom TyperGroup that normalizes command names by replacing
+    all special characters with underscores when resolving commands.
+    This allows users to type `my-echo` or `my.echo` to invoke `my_echo`.
+    """
+    
+    def get_command(self, ctx: Context, cmd_name: str):
+        # First try the original command name
+        cmd = super().get_command(ctx, cmd_name)
+        if cmd is not None:
+            return cmd
+        
+        # If not found, try normalizing (replace all non-alphanumeric chars with underscores)
+        normalized_name = re.sub(r'[^a-zA-Z0-9]', '_', cmd_name)
+        if normalized_name != cmd_name:
+            return super().get_command(ctx, normalized_name)
+        
+        return None
 
 
 def create_typer_app(
@@ -11,6 +37,7 @@ def create_typer_app(
         name=name,
         help=help,
         add_completion=False,
+        cls=NormalizedGroup,  # Use custom group for command resolution
         context_settings={
             "help_option_names": ["-h", "--help"]
         }

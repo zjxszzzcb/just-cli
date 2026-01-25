@@ -31,13 +31,7 @@ def edit_extension(
     from just.core.extension.validator import sanitize_command_path
     sanitized_commands, transformation_notes = sanitize_command_path(commands)
 
-    # Show transformation notes if any
-    if transformation_notes:
-        echo()
-        cyan("Note: Command name sanitization applied:")
-        for note in transformation_notes:
-            echo(f"  - {note}")
-        echo()
+    # Silently apply transformations (no logging)
 
     # Construct the file path
     script_path = Path(extensions_dir, *sanitized_commands).with_suffix('.py')

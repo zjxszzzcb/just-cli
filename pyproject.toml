@@ -1,6 +1,6 @@
 [project]
 name = "just-cli"
-version = "0.2.0"
+version = "0.2.1"
 description = "Your all-in-one CLI Toolkit"
 readme = "README.md"
 authors = [

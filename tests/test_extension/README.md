@@ -10,6 +10,9 @@
 > just ext add echo MESSAGE
 >> just echo -m/--messages MESSAGE[msg:str="Hello World"#Message to display]
 
+> just ext add echo MESSAGE ARGS
+>> just my-echo MESSAGE[msg] ARGS[...]
+
 > just ext add echo ARGS
 >> just echo ARGS[...#Message to display]
 
