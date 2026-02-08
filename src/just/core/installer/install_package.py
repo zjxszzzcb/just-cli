@@ -41,10 +41,20 @@ def install_package(package_name: str, additional_args: Optional[List[str]] = No
     check_cmd = getattr(installer, "_check_command", None)
     if check_cmd:
         from just.utils import execute_command, echo
-        exit_code, _ = execute_command(check_cmd, capture_output=True)
-        if exit_code == 0:
-            echo.success(f"{package_name} is already installed.")
-            return
+        import shlex
+        import shutil
+
+        # Extract command name from check command (e.g., "opencode --version" -> "opencode")
+        cmd_parts = shlex.split(check_cmd)
+        cmd_name = cmd_parts[0] if cmd_parts else check_cmd
+
+        # Check if command exists before executing (follows probe_tool pattern)
+        if shutil.which(cmd_name):
+            exit_code, _ = execute_command(check_cmd, capture_output=True)
+            if exit_code == 0:
+                echo.success(f"{package_name} is already installed.")
+                return
+        # If command doesn't exist, silently proceed with installation
 
     app.command()(installer)
     app(additional_args)
