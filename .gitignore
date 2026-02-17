@@ -12,7 +12,6 @@ wheels/
 # IDE-specific files
 .vscode
 .idea
-.claude
 .qoder
 
 # Environment configuration
