@@ -113,8 +113,9 @@ show_script_help() {
 
 # Main execution logic
 # Check if script is being sourced or executed directly
-# In zsh: sourced/$0 = zsh, direct exec/$0 = script name
-if [[ "$0" =~ "proxy.sh" ]]; then
+# Direct exec: ZSH_EVAL_CONTEXT=toplevel (no 'file')
+# Sourced in .zshrc: ZSH_EVAL_CONTEXT=toplevel:file (contains 'file')
+if [[ "$ZSH_EVAL_CONTEXT" != *file* ]]; then
     # Script is being executed directly
     local cmd="${(L)1}"
     case "$cmd" in
@@ -132,4 +133,4 @@ if [[ "$0" =~ "proxy.sh" ]]; then
             ;;
     esac
 fi
-# When sourced, only define the proxy function (no auto-execution)
+# When sourced (ZSH_EVAL_CONTEXT contains 'file'), only define functions

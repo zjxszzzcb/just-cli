@@ -19,7 +19,7 @@ def install_nvm(
             "./nvm-setup.exe"
             "just rm ./nvm-setup.exe"
         ])
-    elif just.system.platform == "linux":
+    else:
         if not version:
             version = "0.39.5"
         just.execute_commands([
@@ -27,5 +27,3 @@ def install_nvm(
             "bash install_nvm.sh",
             "rm install_nvm.sh"
         ])
-    else:
-        raise NotImplementedError(f"Microsoft Edit is not supported on {just.system.platform}.")
