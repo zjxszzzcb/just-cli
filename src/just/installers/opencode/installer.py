@@ -18,18 +18,12 @@ def install_opencode():
         just.execute_commands("npm install -g opencode-ai")
     else:
         # Download and install binary from GitHub releases
-        # Map platform and arch to OpenCode's naming convention
-        platform_map = {
-            "linux": "linux",
-            "darwin": "darwin",
-            "windows": "windows"
-        }
         arch_map = {
             "x86_64": "x64",
             "aarch64": "arm64"
         }
 
-        platform = platform_map[just.system.platform]
+        platform = just.system.platform
         arch = arch_map[just.system.arch]
 
         # Determine file extension
