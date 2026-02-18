@@ -84,7 +84,7 @@ class BashScriptInstaller:
         # Make script executable
         os.chmod(self._temp_file, os.stat(self._temp_file).st_mode | 0o111)
 
-        cmd = f"sh {self._temp_file}"
+        cmd = f"bash {self._temp_file}"
         self._run_command(cmd)
 
     def _execute_commands(self) -> None:
@@ -114,15 +114,14 @@ class BashScriptInstaller:
             text=True
         )
 
-        # Stream stdout
-        for line in process.stdout:
-            echo.info(line.rstrip())
+        if process.stdout:
+            for line in process.stdout:
+                echo.info(line.rstrip())
 
-        # Stream stderr
-        for line in process.stderr:
-            echo.error(line.rstrip())
+        if process.stderr:
+            for line in process.stderr:
+                echo.error(line.rstrip())
 
-        # Wait for completion
         process.wait()
 
         if process.returncode != 0:

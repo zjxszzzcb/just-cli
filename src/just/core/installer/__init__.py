@@ -8,5 +8,5 @@ __all__ = [
     "installer",
     "SimpleReleaseInstaller",
     "BinaryInstaller",
-    "BashScriptInstaller"
+    "BashScriptInstaller",
 ]

@@ -65,7 +65,7 @@ def install_clash(
 
     # Extract .gz file
     just.echo.info("Extracting binary")
-    just.extract(str(gz_path))
+    just.extract(str(gz_path), str(cache_dir))
 
     # Extracted file has version in name, rename to 'clash'
     extracted_name = f"mihomo-linux-{go_arch}-{version}"

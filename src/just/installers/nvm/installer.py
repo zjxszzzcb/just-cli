@@ -16,8 +16,8 @@ def install_nvm(
             version = "1.2.2"
         just.execute_commands([
             f"just download https://github.com/coreybutler/nvm-windows/releases/download/{version}/nvm-setup.exe",
-            "./nvm-setup.exe"
-            "just rm ./nvm-setup.exe"
+            "./nvm-setup.exe",
+            "rm ./nvm-setup.exe"
         ])
     else:
         if not version:

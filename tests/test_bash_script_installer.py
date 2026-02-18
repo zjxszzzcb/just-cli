@@ -19,6 +19,7 @@ Behavior Documentation
 4. **Error Handling**: Raises RuntimeError on download failure or execution failure.
 """
 
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -205,10 +206,6 @@ class BashScriptInstallerTests:
                 expect(str(e)).to_contain("Command execution failed")
 
             expect(error_raised).to_be_true()
-
-
-# Import subprocess for patching
-import subprocess
 
 
 if __name__ == '__main__':

@@ -27,10 +27,7 @@ def install_opencode():
         arch = arch_map[just.system.arch]
 
         # Determine file extension
-        if just.system.platform == "linux":
-            ext = ".tar.gz"
-        else:
-            ext = ".zip"
+        ext = ".tar.gz" if platform == "linux" else ".zip"
 
         # Build download URL
         filename = f"opencode-{platform}-{arch}{ext}"
@@ -54,11 +51,7 @@ def install_opencode():
             # Extract archive
             extract_dir = os.path.join(tmp_dir, "extracted")
             os.makedirs(extract_dir, exist_ok=True)
-
-            if just.system.platform == "linux":
-                just.extract(archive_path, extract_dir)
-            else:
-                just.extract(archive_path, extract_dir)
+            just.extract(archive_path, extract_dir)
 
             # Find and copy opencode binary
             binary_source = os.path.join(extract_dir, "opencode")

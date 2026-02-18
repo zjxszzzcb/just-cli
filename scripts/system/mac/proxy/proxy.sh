@@ -17,15 +17,15 @@ proxy() {
             export HTTPS_PROXY=$HTTPS_PROXY_URL
             export http_proxy=$HTTP_PROXY_URL
             export https_proxy=$HTTPS_PROXY_URL
-            echo -e "\033[32m[ON]\033[0m HTTP  Proxy $HTTP_PROXY enabled in Bash"
-            echo -e "\033[32m[ON]\033[0m HTTPS Proxy $HTTPS_PROXY enabled in Bash"
+            echo -e "\033[32m[ON]\033[0m HTTP  Proxy $HTTP_PROXY enabled"
+            echo -e "\033[32m[ON]\033[0m HTTPS Proxy $HTTPS_PROXY enabled"
             ;;
         off)
             if [[ -n "$HTTP_PROXY" ]]; then
-                echo -e "\033[31m[OFF]\033[0m HTTP  Proxy $HTTP_PROXY disabled in Bash"
-                echo -e "\033[31m[OFF]\033[0m HTTPS Proxy $HTTPS_PROXY disabled in Bash"
+                echo -e "\033[31m[OFF]\033[0m HTTP  Proxy $HTTP_PROXY disabled"
+                echo -e "\033[31m[OFF]\033[0m HTTPS Proxy $HTTPS_PROXY disabled"
             else
-                echo -e "\033[31m[OFF]\033[0m Proxy disabled in Bash"
+                echo -e "\033[31m[OFF]\033[0m Proxy disabled"
             fi
             unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
             ;;

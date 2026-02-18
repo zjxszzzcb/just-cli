@@ -5,7 +5,6 @@ import just
 def install_gh():
     """Install GitHub CLI (gh)."""
 
-    # macOS: use Homebrew
     if just.system.platform == "darwin":
         if just.system.pms.brew.is_available():
             just.execute_commands("brew install gh")
@@ -15,7 +14,6 @@ def install_gh():
                 "Visit: https://github.com/cli/cli/releases"
             )
 
-    # Windows: use winget
     elif just.system.platform == "windows":
         if just.system.pms.winget.is_available():
             just.execute_commands("winget install --id GitHub.cli")
@@ -25,9 +23,9 @@ def install_gh():
                 "Visit: https://github.com/cli/cli/releases"
             )
 
-    # Linux: try package managers
     elif just.system.platform == "linux":
-        # Debian/Ubuntu (apt)
+        installed = False
+
         if just.system.pms.apt.is_available():
             try:
                 just.execute_commands([
@@ -35,9 +33,15 @@ def install_gh():
                     "echo 'deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null",
                     "sudo apt update && sudo apt install gh"
                 ])
-                return
+                installed = True
             except Exception:
                 pass
+
+        if not installed:
+            raise NotImplementedError(
+                "Failed to install gh via package manager.\n"
+                "Visit: https://github.com/cli/cli/releases for manual installation."
+            )
 
     else:
         raise NotImplementedError(f"gh is not supported on {just.system.platform}")

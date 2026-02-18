@@ -1,6 +1,7 @@
 import just
 from pathlib import Path
 
+
 @just.installer(check="conda --version")
 def install_miniconda3():
     """
@@ -19,10 +20,14 @@ def install_miniconda3():
 
         installer_path = install_dir / "miniconda.sh"
         just.download_with_resume(installer_url, output_file=str(installer_path))
-        just.execute_commands([
-            f"bash {installer_path} -b -u -p {install_dir}",
-            f"rm {installer_path}",
-            f"{install_dir}/bin/conda init --all"
-        ])
+
+        try:
+            just.execute_commands(f"bash {installer_path} -b -u -p {install_dir}")
+            just.execute_commands(f"{install_dir}/bin/conda init --all")
+        finally:
+            # Clean up installer script even on failure
+            if installer_path.exists():
+                installer_path.unlink()
     else:
         raise NotImplementedError(f"Miniconda3 installer is not supported on {just.system.platform}.")
+
