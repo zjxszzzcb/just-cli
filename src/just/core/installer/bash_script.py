@@ -14,8 +14,7 @@ class BashScriptInstaller:
     Executes either inline commands or downloads and runs a script from URL.
     """
 
-    def __init__(
-        self,
+    def __init__(self,
         commands: Optional[Union[str, List[str]]] = None,
         script_url: Optional[str] = None
     ):
@@ -31,9 +30,7 @@ class BashScriptInstaller:
         """
         # Validate mutual exclusivity
         if (commands is None) == (script_url is None):
-            raise ValueError(
-                "Either 'commands' or 'script_url' must be provided, but not both"
-            )
+            raise ValueError("Either 'commands' or 'script_url' must be provided, but not both")
 
         self.commands = commands
         self.script_url = script_url

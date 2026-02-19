@@ -1,7 +1,7 @@
 from .decorator import installer
 from .simple_release import SimpleReleaseInstaller
 from .binary import BinaryInstaller
-from .bash_script import BashScriptInstaller
+from .script_installer import ScriptInstaller, BashScriptInstaller, PowerShellInstaller
 
 
 __all__ = [
@@ -9,4 +9,6 @@ __all__ = [
     "SimpleReleaseInstaller",
     "BinaryInstaller",
     "BashScriptInstaller",
+    "ScriptInstaller",
+    "PowerShellInstaller",
 ]

@@ -1,6 +1,6 @@
 """
 BashScriptInstaller Test Suite
-==============================
+=============================
 
 This module tests the BashScriptInstaller behavior.
 
@@ -13,8 +13,8 @@ Behavior Documentation
 2. **Command Execution**: Accepts either a single string or list of strings.
    Commands are joined with '&&' for sequential execution.
 
-3. **Script Download**: Downloads script from URL to temp file, makes it
-   executable, then runs it.
+3. **Script Download**: Downloads script from URL to temp file using requests,
+   then runs it with the shell.
 
 4. **Error Handling**: Raises RuntimeError on download failure or execution failure.
 """
@@ -25,7 +25,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 # Ensure src is in path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from testing import describe, it, expect
 
@@ -34,8 +34,8 @@ from testing import describe, it, expect
 class BashScriptInstallerTests:
     """
     BashScriptInstaller
-    ===================
-    
+    ==================
+
     Installer for bash scripts that can execute inline commands
     or download and run scripts from URLs.
     """
@@ -53,8 +53,9 @@ class BashScriptInstallerTests:
         mock_process.returncode = 0
         mock_process.wait.return_value = None
 
-        with patch('subprocess.Popen', return_value=mock_process):
-            from just.core.installer.bash_script import BashScriptInstaller
+        with patch("subprocess.Popen", return_value=mock_process):
+            from just.core.installer.script_installer import BashScriptInstaller
+
             installer = BashScriptInstaller(commands="echo 'hello'")
             installer.run()
 
@@ -75,8 +76,9 @@ class BashScriptInstallerTests:
         mock_process.returncode = 0
         mock_process.wait.return_value = None
 
-        with patch('subprocess.Popen', return_value=mock_process):
-            from just.core.installer.bash_script import BashScriptInstaller
+        with patch("subprocess.Popen", return_value=mock_process):
+            from just.core.installer.script_installer import BashScriptInstaller
+
             installer = BashScriptInstaller(commands=["echo 'hello'", "echo 'world'"])
             installer.run()
 
@@ -100,24 +102,28 @@ class BashScriptInstallerTests:
         mock_stat = MagicMock()
         mock_stat.st_mode = 0o644
 
-        with patch('subprocess.Popen', return_value=mock_process), \
-             patch('just.core.installer.bash_script.download_with_resume') as mock_download, \
-             patch('tempfile.mkstemp') as mock_mkstemp, \
-             patch('os.chmod'), \
-             patch('os.close'), \
-             patch('os.path.exists', return_value=True), \
-             patch('os.stat', return_value=mock_stat), \
-             patch('os.remove'):
+        with (
+            patch("subprocess.Popen", return_value=mock_process),
+            patch("requests.get") as mock_get,
+            patch("tempfile.mkstemp") as mock_mkstemp,
+            patch("os.chmod"),
+            patch("os.close"),
+            patch("os.path.exists", return_value=True),
+            patch("os.stat", return_value=mock_stat),
+            patch("os.remove"),
+            patch("builtins.open", MagicMock()),
+        ):
+            mock_mkstemp.return_value = (123, "/tmp/test_script.sh")
+            mock_get.return_value.text = '#!/bin/bash\necho "hello"'
 
-            mock_mkstemp.return_value = (123, '/tmp/test_script.sh')
+            from just.core.installer.script_installer import BashScriptInstaller
 
-            from just.core.installer.bash_script import BashScriptInstaller
             installer = BashScriptInstaller(script_url="https://example.com/script.sh")
             installer.run()
 
-            # Verify: download_with_resume was called
-            expect(mock_download.called).to_be_true()
-            expect(mock_download.call_args[1]['url']).to_equal("https://example.com/script.sh")
+            # Verify: requests.get was called
+            expect(mock_get.called).to_be_true()
+            expect(mock_get.call_args[0][0]).to_equal("https://example.com/script.sh")
 
     @it("raises ValueError when both commands and script_url provided")
     def test_mutual_exclusivity_both_provided(self):
@@ -126,14 +132,18 @@ class BashScriptInstallerTests:
         When: BashScriptInstaller is instantiated
         Then: ValueError is raised
         """
-        from just.core.installer.bash_script import BashScriptInstaller
+        from just.core.installer.script_installer import BashScriptInstaller
 
         error_raised = False
         try:
-            BashScriptInstaller(commands="echo hello", script_url="https://example.com/script.sh")
+            BashScriptInstaller(
+                commands="echo hello", script_url="https://example.com/script.sh"
+            )
         except ValueError as e:
             error_raised = True
-            expect(str(e)).to_contain("Either 'commands' or 'script_url' must be provided")
+            expect(str(e)).to_contain(
+                "Either 'commands' or 'script_url' must be provided"
+            )
 
         expect(error_raised).to_be_true()
 
@@ -144,14 +154,16 @@ class BashScriptInstallerTests:
         When: BashScriptInstaller is instantiated
         Then: ValueError is raised
         """
-        from just.core.installer.bash_script import BashScriptInstaller
+        from just.core.installer.script_installer import BashScriptInstaller
 
         error_raised = False
         try:
             BashScriptInstaller()
         except ValueError as e:
             error_raised = True
-            expect(str(e)).to_contain("Either 'commands' or 'script_url' must be provided")
+            expect(str(e)).to_contain(
+                "Either 'commands' or 'script_url' must be provided"
+            )
 
         expect(error_raised).to_be_true()
 
@@ -162,18 +174,21 @@ class BashScriptInstallerTests:
         When: run() is called
         Then: RuntimeError is raised
         """
-        with patch('just.core.installer.bash_script.download_with_resume', side_effect=Exception("Network error")), \
-             patch('tempfile.mkstemp') as mock_mkstemp, \
-             patch('os.close'), \
-             patch('os.path.exists', return_value=False):
+        with (
+            patch("requests.get", side_effect=Exception("Network error")),
+            patch("tempfile.mkstemp") as mock_mkstemp,
+            patch("os.close"),
+            patch("os.path.exists", return_value=False),
+        ):
+            mock_mkstemp.return_value = (123, "/tmp/test_script.sh")
 
-            mock_mkstemp.return_value = (123, '/tmp/test_script.sh')
-
-            from just.core.installer.bash_script import BashScriptInstaller
+            from just.core.installer.script_installer import BashScriptInstaller
 
             error_raised = False
             try:
-                installer = BashScriptInstaller(script_url="https://example.com/script.sh")
+                installer = BashScriptInstaller(
+                    script_url="https://example.com/script.sh"
+                )
                 installer.run()
             except RuntimeError as e:
                 error_raised = True
@@ -194,8 +209,8 @@ class BashScriptInstallerTests:
         mock_process.returncode = 1
         mock_process.wait.return_value = None
 
-        with patch('subprocess.Popen', return_value=mock_process):
-            from just.core.installer.bash_script import BashScriptInstaller
+        with patch("subprocess.Popen", return_value=mock_process):
+            from just.core.installer.script_installer import BashScriptInstaller
 
             error_raised = False
             try:
@@ -208,7 +223,8 @@ class BashScriptInstallerTests:
             expect(error_raised).to_be_true()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from testing import run_tests
+
     success = run_tests()
     sys.exit(0 if success else 1)
