@@ -1,9 +1,9 @@
 # Script Installers
 from .script_installer import BashScriptInstaller, PowerShellInstaller, ScriptInstaller
 
-# Binary & Release Installers
+# Binary & Archive Installers
+from .archive import ArchiveInstaller
 from .binary import BinaryInstaller
-from .simple_release import SimpleReleaseInstaller
 
 
 __all__ = [
@@ -11,7 +11,7 @@ __all__ = [
     "ScriptInstaller",
     "BashScriptInstaller",
     "PowerShellInstaller",
-    # Binary & Release Installers
+    # Binary & Archive Installers
+    "ArchiveInstaller",
     "BinaryInstaller",
-    "SimpleReleaseInstaller",
 ]

@@ -1,9 +1,14 @@
 from typing_extensions import Annotated
 from typer import Option, Argument
 
-from just.cli import just_cli,capture_exception
-from just.core.config import JustConfig, load_env_config, update_env_config, get_cache_dir
-from just.core.installer import installer, SimpleReleaseInstaller, BinaryInstaller
+from just.cli import just_cli, capture_exception
+from just.core.config import (
+    JustConfig,
+    load_env_config,
+    update_env_config,
+    get_cache_dir,
+)
+from just.core.installer import installer, ArchiveInstaller, BinaryInstaller
 from just.utils import (
     SystemProbe,
     create_typer_app,
@@ -12,7 +17,7 @@ from just.utils import (
     download_with_resume,
     echo,
     extract,
-    execute_commands
+    execute_commands,
 )
 
 
@@ -32,9 +37,9 @@ __all__ = [
     "config",
     "just_cli",
     "installer",
-    "SimpleReleaseInstaller",
+    "ArchiveInstaller",
     "BinaryInstaller",
     "load_env_config",
     "update_env_config",
-    "system"
+    "system",
 ]
