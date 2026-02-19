@@ -1,18 +1,22 @@
 # Decorator
 from .decorator import installer
 
-# Installers
-from .binary import BinaryInstaller
-from .script_installer import BashScriptInstaller, PowerShellInstaller, ScriptInstaller
-from .simple_release import SimpleReleaseInstaller
+# Installers (from installers/ subpackage)
+from .installers import (
+    BashScriptInstaller,
+    BinaryInstaller,
+    PowerShellInstaller,
+    ScriptInstaller,
+    SimpleReleaseInstaller,
+)
 
 
 __all__ = [
     # Decorator
     "installer",
     # Installers
-    "BinaryInstaller",
     "BashScriptInstaller",
+    "BinaryInstaller",
     "PowerShellInstaller",
     "ScriptInstaller",
     "SimpleReleaseInstaller",

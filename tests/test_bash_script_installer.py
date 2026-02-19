@@ -54,7 +54,9 @@ class BashScriptInstallerTests:
         mock_process.wait.return_value = None
 
         with patch("subprocess.Popen", return_value=mock_process):
-            from just.core.installer.script_installer import BashScriptInstaller
+            from just.core.installer.installers.script_installer import (
+                BashScriptInstaller,
+            )
 
             installer = BashScriptInstaller(commands="echo 'hello'")
             installer.run()
@@ -77,7 +79,9 @@ class BashScriptInstallerTests:
         mock_process.wait.return_value = None
 
         with patch("subprocess.Popen", return_value=mock_process):
-            from just.core.installer.script_installer import BashScriptInstaller
+            from just.core.installer.installers.script_installer import (
+                BashScriptInstaller,
+            )
 
             installer = BashScriptInstaller(commands=["echo 'hello'", "echo 'world'"])
             installer.run()
@@ -116,7 +120,9 @@ class BashScriptInstallerTests:
             mock_mkstemp.return_value = (123, "/tmp/test_script.sh")
             mock_get.return_value.text = '#!/bin/bash\necho "hello"'
 
-            from just.core.installer.script_installer import BashScriptInstaller
+            from just.core.installer.installers.script_installer import (
+                BashScriptInstaller,
+            )
 
             installer = BashScriptInstaller(script_url="https://example.com/script.sh")
             installer.run()
@@ -132,7 +138,7 @@ class BashScriptInstallerTests:
         When: BashScriptInstaller is instantiated
         Then: ValueError is raised
         """
-        from just.core.installer.script_installer import BashScriptInstaller
+        from just.core.installer.installers.script_installer import BashScriptInstaller
 
         error_raised = False
         try:
@@ -154,7 +160,7 @@ class BashScriptInstallerTests:
         When: BashScriptInstaller is instantiated
         Then: ValueError is raised
         """
-        from just.core.installer.script_installer import BashScriptInstaller
+        from just.core.installer.installers.script_installer import BashScriptInstaller
 
         error_raised = False
         try:
@@ -182,7 +188,9 @@ class BashScriptInstallerTests:
         ):
             mock_mkstemp.return_value = (123, "/tmp/test_script.sh")
 
-            from just.core.installer.script_installer import BashScriptInstaller
+            from just.core.installer.installers.script_installer import (
+                BashScriptInstaller,
+            )
 
             error_raised = False
             try:
@@ -210,7 +218,9 @@ class BashScriptInstallerTests:
         mock_process.wait.return_value = None
 
         with patch("subprocess.Popen", return_value=mock_process):
-            from just.core.installer.script_installer import BashScriptInstaller
+            from just.core.installer.installers.script_installer import (
+                BashScriptInstaller,
+            )
 
             error_raised = False
             try:
