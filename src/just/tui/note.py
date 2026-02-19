@@ -81,94 +81,148 @@ class NoteApp(App):
     """A TUI note management application"""
 
     CSS = """
+    /* Main layout */
     Horizontal {
         height: 1fr;
     }
 
+    /* Sidebar - note list */
     #note-list-container {
-        width: 30%;
+        width: 28;
         dock: left;
-        border-right: solid $primary;
+        background: $surface-darken-1;
+        border-right: wide $primary;
     }
 
+    /* Preview area */
     #preview-container {
-        width: 70%;
+        width: 1fr;
+        background: $surface;
+        padding: 1 2;
     }
 
+    /* Note list */
     #note-list {
         height: 1fr;
+        background: transparent;
     }
 
     #empty-message {
         text-align: center;
         padding: 2;
         color: $text-muted;
+        text-style: italic;
     }
 
+    /* Markdown preview */
     #markdown-preview {
         height: 1fr;
+        background: transparent;
+        padding: 0;
     }
 
+    /* Editor */
     #editor {
         height: 1fr;
+        background: $surface;
     }
 
     .hidden {
         display: none;
     }
 
+    /* Note list items - compact style */
     NoteListItem {
-        padding: 1;
+        height: 1;
+        padding: 0 1;
+        background: transparent;
     }
 
     NoteListItem:hover {
+        background: $primary-darken-3;
+    }
+
+    NoteListItem.-active {
         background: $primary-darken-2;
     }
 
     NoteListItem:focus {
         background: $primary-darken-1;
+        text-style: bold;
+    }
+
+    NoteListItem Label {
+        width: 1fr;
+        height: 1;
+        content-align: left middle;
+        overflow: hidden;
+    }
+
+    /* Header styling */
+    Header {
+        background: $primary;
+        color: $text-on-primary;
     }
 
     /* New Note Dialog */
     #dialog {
         align: center middle;
         width: 50;
-        height: 10;
+        height: 11;
         background: $surface;
-        border: thick $primary;
+        border: wide $primary;
+        padding: 1;
     }
 
     #prompt {
         padding: 1;
         text-align: center;
+        text-style: bold;
+        color: $text;
     }
 
     #title-input {
         margin: 0 2;
+        border: wide $primary;
     }
 
     #buttons {
         align: center middle;
+        height: 3;
         padding: 1;
+    }
+
+    #buttons Button {
+        margin: 0 1;
+        min-width: 12;
     }
 
     /* Delete Confirm Dialog */
     #confirm-dialog {
         align: center middle;
-        width: 40;
-        height: 8;
+        width: 42;
+        height: 9;
         background: $surface;
-        border: thick $error;
+        border: wide $error;
+        padding: 1;
     }
 
     #confirm-prompt {
         padding: 1;
         text-align: center;
+        text-style: bold;
+        color: $error;
     }
 
     #confirm-buttons {
         align: center middle;
+        height: 3;
         padding: 1;
+    }
+
+    #confirm-buttons Button {
+        margin: 0 1;
+        min-width: 10;
     }
     """
 
