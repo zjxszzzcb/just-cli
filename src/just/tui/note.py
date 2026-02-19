@@ -81,30 +81,29 @@ class NoteApp(App):
     """A TUI note management application"""
 
     CSS = """
-    /* Main layout */
+    /* Layout */
     Horizontal {
         height: 1fr;
     }
 
-    /* Sidebar - note list */
+    /* Sidebar */
     #note-list-container {
-        width: 28;
+        width: 30;
         dock: left;
-        background: $surface-darken-1;
-        border-right: wide $primary;
+        background: $panel;
+        border-right: tall $primary;
     }
 
-    /* Preview area */
+    /* Preview */
     #preview-container {
         width: 1fr;
         background: $surface;
         padding: 1 2;
     }
 
-    /* Note list */
+    /* List */
     #note-list {
         height: 1fr;
-        background: transparent;
     }
 
     #empty-message {
@@ -114,113 +113,77 @@ class NoteApp(App):
         text-style: italic;
     }
 
-    /* Markdown preview */
-    #markdown-preview {
+    /* Markdown & Editor */
+    #markdown-preview, #editor {
         height: 1fr;
-        background: transparent;
-        padding: 0;
-    }
-
-    /* Editor */
-    #editor {
-        height: 1fr;
-        background: $surface;
     }
 
     .hidden {
         display: none;
     }
 
-    /* Note list items - compact style */
+    /* List Items */
     NoteListItem {
-        height: 1;
-        padding: 0 1;
-        background: transparent;
+        height: auto;
+        padding: 1 2;
     }
 
     NoteListItem:hover {
-        background: $primary-darken-3;
+        background: $boost;
     }
 
     NoteListItem.-active {
-        background: $primary-darken-2;
+        background: $primary 30%;
     }
 
     NoteListItem:focus {
-        background: $primary-darken-1;
-        text-style: bold;
+        background: $primary 50%;
     }
 
     NoteListItem Label {
         width: 1fr;
-        height: 1;
-        content-align: left middle;
-        overflow: hidden;
     }
 
-    /* Header styling */
-    Header {
-        background: $primary;
-        color: $text-primary;
-    }
-
-    /* New Note Dialog */
-    #dialog {
+    /* Dialog Base */
+    #dialog, #confirm-dialog {
         align: center middle;
-        width: 50;
-        height: 11;
         background: $surface;
-        border: wide $primary;
-        padding: 1;
+        border: tall $primary;
+        padding: 1 2;
     }
 
-    #prompt {
+    #dialog {
+        width: 50;
+        height: auto;
+    }
+
+    #confirm-dialog {
+        width: 44;
+        height: auto;
+        border: tall $error;
+    }
+
+    #prompt, #confirm-prompt {
         padding: 1;
         text-align: center;
         text-style: bold;
-        color: $text;
-    }
-
-    #title-input {
-        margin: 0 2;
-        border: wide $primary;
-    }
-
-    #buttons {
-        align: center middle;
-        height: 3;
-        padding: 1;
-    }
-
-    #buttons Button {
-        margin: 0 1;
-        min-width: 12;
-    }
-
-    /* Delete Confirm Dialog */
-    #confirm-dialog {
-        align: center middle;
-        width: 42;
-        height: 9;
-        background: $surface;
-        border: wide $error;
-        padding: 1;
     }
 
     #confirm-prompt {
-        padding: 1;
-        text-align: center;
-        text-style: bold;
         color: $error;
     }
 
-    #confirm-buttons {
-        align: center middle;
-        height: 3;
-        padding: 1;
+    #title-input {
+        margin: 1 2;
     }
 
-    #confirm-buttons Button {
+    #buttons, #confirm-buttons {
+        height: auto;
+        padding: 1;
+        align-horizontal: center;
+    }
+
+    Button {
         margin: 0 1;
         min-width: 10;
     }
