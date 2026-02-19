@@ -4,9 +4,17 @@ from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Header, Footer, Static, ListView, ListItem, Label
+from textual.widgets import (
+    Header,
+    Footer,
+    Static,
+    ListView,
+    ListItem,
+    Label,
+    MarkdownViewer,
+)
 
-from just.utils.note_utils import list_notes
+from just.utils.note_utils import list_notes, read_note
 
 
 class NoteListItem(ListItem):
@@ -48,10 +56,8 @@ class NoteApp(App):
         color: $text-muted;
     }
 
-    #preview-placeholder {
-        text-align: center;
-        padding: 2;
-        color: $text-muted;
+    #markdown-preview {
+        height: 1fr;
     }
 
     NoteListItem {
@@ -73,6 +79,10 @@ class NoteApp(App):
         ("q", "quit", "Quit"),
     ]
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._current_note: Path | None = None
+
     def compose(self) -> ComposeResult:
         """Create the UI layout with sidebar and preview"""
         yield Header()
@@ -83,7 +93,7 @@ class NoteApp(App):
                     "No notes yet. Press 'n' to create one.", id="empty-message"
                 )
             with Vertical(id="preview-container"):
-                yield Static("Select a note to preview", id="preview-placeholder")
+                yield MarkdownViewer(id="markdown-preview")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -105,6 +115,14 @@ class NoteApp(App):
         else:
             list_view.display = False
             empty_msg.display = True
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        selected_item = event.item
+        if isinstance(selected_item, NoteListItem):
+            self._current_note = selected_item.note_path
+            content = read_note(selected_item.note_path.stem)
+            markdown_viewer = self.query_one("#markdown-preview", MarkdownViewer)
+            markdown_viewer.document.update(content)
 
     def action_new_note(self) -> None:
         """Create a new note (placeholder - Task 6)"""
