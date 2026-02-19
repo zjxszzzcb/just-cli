@@ -75,8 +75,42 @@ def list_notes() -> List[Path]:
     return sorted(note_files, key=lambda p: p.stem)
 
 
+def get_unique_filename(title: str) -> str:
+    """Get a unique filename for a note, appending _1, _2, etc. if needed
+
+    Args:
+        title: Original note title
+
+    Returns:
+        Unique filename with .md extension
+
+    Examples:
+        >>> get_unique_filename("Test Note")
+        'Test_Note.md'
+        >>> get_unique_filename("Test Note")  # If Test_Note.md already exists
+        'Test_Note_1.md'
+    """
+    base_filename = sanitize_filename(title)
+    notes_dir = get_notes_dir()
+    note_path = notes_dir / base_filename
+
+    if not note_path.exists():
+        return base_filename
+
+    # Extract base name without .md
+    base = base_filename[:-3] if base_filename.endswith(".md") else base_filename
+    counter = 1
+
+    while True:
+        new_filename = f"{base}_{counter}.md"
+        new_path = notes_dir / new_filename
+        if not new_path.exists():
+            return new_filename
+        counter += 1
+
+
 def create_note(title: str, content: str = "") -> Path:
-    """Create a new note file
+    """Create a new note file with unique filename handling
 
     Args:
         title: Note title (will be sanitized to filename)
@@ -90,7 +124,7 @@ def create_note(title: str, content: str = "") -> Path:
         >>> note_path.exists()
         True
     """
-    filename = sanitize_filename(title)
+    filename = get_unique_filename(title)
     notes_dir = get_notes_dir()
 
     ensure_notes_dir_exists()
