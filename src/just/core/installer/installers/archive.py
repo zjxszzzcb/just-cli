@@ -1,3 +1,5 @@
+"""Installers for pre-compiled release archives."""
+
 import os
 import stat
 from pathlib import Path
@@ -31,7 +33,7 @@ class ArchiveInstaller:
         headers: Optional[Dict[str, str]] = None,
     ):
         """
-        Initialize SimpleReleaseInstaller.
+        Initialize ArchiveInstaller.
 
         Args:
             url: Download URL for the release archive

@@ -1,3 +1,5 @@
+"""Script-based installers (bash, powershell)."""
+
 import os
 import subprocess
 import tempfile
