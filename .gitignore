@@ -20,3 +20,5 @@ wheels/
 workspace/
 extensions/
 CLAUDE.md
+
+.DS_Store
