@@ -5,6 +5,7 @@ from pathlib import Path
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.screen import ModalScreen
 from textual.widgets import (
     Header,
     Footer,
@@ -13,10 +14,39 @@ from textual.widgets import (
     ListItem,
     Label,
     MarkdownViewer,
+    Input,
+    Button,
 )
 
 from just.tui.editor import EditArea
 from just.utils.note_utils import list_notes, read_note
+
+
+class NewNoteScreen(ModalScreen):
+    """Modal dialog for creating a new note"""
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="dialog"):
+            yield Label("Enter note title:", id="prompt")
+            yield Input(placeholder="Note title", id="title-input")
+            with Horizontal(id="buttons"):
+                yield Button("Create", variant="primary", id="create")
+                yield Button("Cancel", variant="default", id="cancel")
+
+    def on_mount(self) -> None:
+        self.query_one("#title-input", Input).focus()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "title-input" and event.value.strip():
+            self.dismiss(event.value.strip())
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "create":
+            title = self.query_one("#title-input", Input).value.strip()
+            if title:
+                self.dismiss(title)
+        elif event.button.id == "cancel":
+            self.dismiss(None)
 
 
 class NoteListItem(ListItem):
@@ -81,6 +111,29 @@ class NoteApp(App):
     NoteListItem:focus {
         background: $primary-darken-1;
     }
+
+    /* New Note Dialog */
+    #dialog {
+        align: center middle;
+        width: 50;
+        height: 10;
+        background: $surface;
+        border: thick $primary;
+    }
+
+    #prompt {
+        padding: 1;
+        text-align: center;
+    }
+
+    #title-input {
+        margin: 0 2;
+    }
+
+    #buttons {
+        align: center middle;
+        padding: 1;
+    }
     """
 
     BINDINGS = [
@@ -140,9 +193,29 @@ class NoteApp(App):
             markdown_viewer.document.update(content)
 
     def action_new_note(self) -> None:
-        """Create a new note (placeholder - Task 6)"""
-        # TODO: Implement in Task 6
-        pass
+        """Create a new note"""
+        self.push_screen(NewNoteScreen(), self._on_new_note_title)
+
+    def _on_new_note_title(self, title: str | None) -> None:
+        """Handle new note title input"""
+        if not title:
+            return
+
+        from just.utils.note_utils import create_note
+
+        note_path = create_note(title, f"# {title}\n\n")
+        self._load_notes()
+
+        list_view = self.query_one("#note-list", ListView)
+        for i, item in enumerate(list_view.children):
+            if isinstance(item, NoteListItem) and item.note_path == note_path:
+                list_view.index = i
+                break
+
+        self._current_note = note_path
+        markdown_viewer = self.query_one("#markdown-preview", MarkdownViewer)
+        markdown_viewer.document.update(f"# {title}\n\n")
+        self.action_edit_note()
 
     def action_delete_note(self) -> None:
         """Delete selected note (placeholder - Task 7)"""
