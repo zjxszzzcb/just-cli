@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.widgets import (
     Header,
@@ -14,6 +15,7 @@ from textual.widgets import (
     MarkdownViewer,
 )
 
+from just.tui.editor import EditArea
 from just.utils.note_utils import list_notes, read_note
 
 
@@ -60,6 +62,14 @@ class NoteApp(App):
         height: 1fr;
     }
 
+    #editor {
+        height: 1fr;
+    }
+
+    .hidden {
+        display: none;
+    }
+
     NoteListItem {
         padding: 1;
     }
@@ -77,11 +87,15 @@ class NoteApp(App):
         ("n", "new_note", "New"),
         ("d", "delete_note", "Delete"),
         ("q", "quit", "Quit"),
+        Binding("enter", "edit_note", "Edit", show=False),
+        Binding("ctrl+s", "save_note", "Save", show=False),
+        Binding("escape", "cancel_edit", "Cancel", show=False),
     ]
 
     def __init__(self) -> None:
         super().__init__()
         self._current_note: Path | None = None
+        self._is_editing: bool = False
 
     def compose(self) -> ComposeResult:
         """Create the UI layout with sidebar and preview"""
@@ -94,6 +108,7 @@ class NoteApp(App):
                 )
             with Vertical(id="preview-container"):
                 yield MarkdownViewer(id="markdown-preview")
+                yield EditArea(id="editor", classes="hidden")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -133,3 +148,45 @@ class NoteApp(App):
         """Delete selected note (placeholder - Task 7)"""
         # TODO: Implement in Task 7
         pass
+
+    def action_edit_note(self) -> None:
+        """Enter edit mode for the selected note"""
+        if self._current_note is None:
+            return
+
+        content = read_note(self._current_note.stem)
+        editor = self.query_one("#editor", EditArea)
+        editor.load_text(content)
+
+        self._is_editing = True
+        markdown_viewer = self.query_one("#markdown-preview", MarkdownViewer)
+        markdown_viewer.display = False
+        editor.display = True
+        editor.focus()
+
+    def action_save_note(self) -> None:
+        """Save the current note content"""
+        if not self._is_editing or self._current_note is None:
+            return
+
+        editor = self.query_one("#editor", EditArea)
+        content = editor.text
+        self._current_note.write_text(content, encoding="utf-8")
+
+        markdown_viewer = self.query_one("#markdown-preview", MarkdownViewer)
+        markdown_viewer.document.update(content)
+
+        self._is_editing = False
+        editor.display = False
+        markdown_viewer.display = True
+
+    def action_cancel_edit(self) -> None:
+        """Cancel editing and return to preview mode"""
+        if not self._is_editing:
+            return
+
+        self._is_editing = False
+        editor = self.query_one("#editor", EditArea)
+        markdown_viewer = self.query_one("#markdown-preview", MarkdownViewer)
+        editor.display = False
+        markdown_viewer.display = True
