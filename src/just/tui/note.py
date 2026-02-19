@@ -161,7 +161,7 @@ class NoteApp(App):
     /* Header styling */
     Header {
         background: $primary;
-        color: $text-on-primary;
+        color: $text-primary;
     }
 
     /* New Note Dialog */
