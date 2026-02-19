@@ -5,7 +5,7 @@ import stat
 from pathlib import Path
 from typing import Dict, Optional
 
-import just.utils.echo_utils as echo
+from just.utils import echo
 from just.utils.download_utils import download_with_resume
 from just.utils.file_utils import mkdir, symlink
 

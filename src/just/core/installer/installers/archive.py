@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Optional, Dict
 from urllib.parse import urlparse
 
-import just.utils.echo_utils as echo
+from just.utils import echo
 from just.utils.download_utils import download_with_resume
 from just.utils.archive import extract
 from just.utils.file_utils import mkdir, symlink, search_file

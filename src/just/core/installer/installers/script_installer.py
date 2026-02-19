@@ -8,7 +8,7 @@ from typing import List, Optional, Union
 
 import requests
 
-import just.utils.echo_utils as echo
+from just.utils import echo
 
 
 class ScriptInstaller(ABC):
