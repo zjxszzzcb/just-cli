@@ -19,7 +19,7 @@ from textual.widgets import (
 )
 
 from just.tui.editor import EditArea
-from just.utils.note_utils import list_notes, read_note
+from just.utils.note_utils import delete_note, list_notes, read_note
 
 
 class NewNoteScreen(ModalScreen):
@@ -47,6 +47,23 @@ class NewNoteScreen(ModalScreen):
                 self.dismiss(title)
         elif event.button.id == "cancel":
             self.dismiss(None)
+
+
+class DeleteConfirmScreen(ModalScreen[bool]):
+    """Modal dialog for confirming note deletion"""
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="confirm-dialog"):
+            yield Label("Delete this note?", id="confirm-prompt")
+            with Horizontal(id="confirm-buttons"):
+                yield Button("Delete", variant="error", id="confirm-delete")
+                yield Button("Cancel", variant="default", id="cancel-delete")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "confirm-delete":
+            self.dismiss(True)
+        else:
+            self.dismiss(False)
 
 
 class NoteListItem(ListItem):
@@ -134,6 +151,25 @@ class NoteApp(App):
         align: center middle;
         padding: 1;
     }
+
+    /* Delete Confirm Dialog */
+    #confirm-dialog {
+        align: center middle;
+        width: 40;
+        height: 8;
+        background: $surface;
+        border: thick $error;
+    }
+
+    #confirm-prompt {
+        padding: 1;
+        text-align: center;
+    }
+
+    #confirm-buttons {
+        align: center middle;
+        padding: 1;
+    }
     """
 
     BINDINGS = [
@@ -218,9 +254,30 @@ class NoteApp(App):
         self.action_edit_note()
 
     def action_delete_note(self) -> None:
-        """Delete selected note (placeholder - Task 7)"""
-        # TODO: Implement in Task 7
-        pass
+        if self._current_note is None:
+            return
+        note_to_delete = self._current_note
+        self.push_screen(
+            DeleteConfirmScreen(),
+            lambda confirmed: self._on_delete_confirmed(confirmed, note_to_delete),
+        )
+
+    def _on_delete_confirmed(self, confirmed: bool | None, note_path: Path) -> None:
+        if not confirmed:
+            return
+
+        delete_note(note_path.stem)
+        self._current_note = None
+        self._load_notes()
+
+        markdown_viewer = self.query_one("#markdown-preview", MarkdownViewer)
+        markdown_viewer.document.update("")
+
+        list_view = self.query_one("#note-list", ListView)
+        if not list_view.children:
+            empty_msg = self.query_one("#empty-message", Static)
+            empty_msg.display = True
+            list_view.display = False
 
     def action_edit_note(self) -> None:
         """Enter edit mode for the selected note"""
