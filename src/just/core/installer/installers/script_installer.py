@@ -6,7 +6,7 @@ import tempfile
 from abc import ABC, abstractmethod
 from typing import List, Optional, Union
 
-import requests
+import httpx
 
 from just.utils import echo
 
@@ -90,7 +90,7 @@ class ScriptInstaller(ABC):
         os.close(temp_fd)
 
         try:
-            content = requests.get(self.script_url).text
+            content = httpx.get(self.script_url).text
 
             with open(self._temp_file, "w") as f:
                 f.write(content)

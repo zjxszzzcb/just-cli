@@ -13,7 +13,7 @@ Behavior Documentation
 2. **Command Execution**: Accepts either a single string or list of strings.
    Commands are joined with '&&' for sequential execution.
 
-3. **Script Download**: Downloads script from URL to temp file using requests,
+3. **Script Download**: Downloads script from URL to temp file using httpx,
    then runs it with the shell.
 
 4. **Error Handling**: Raises RuntimeError on download failure or execution failure.
@@ -108,7 +108,7 @@ class BashScriptInstallerTests:
 
         with (
             patch("subprocess.Popen", return_value=mock_process),
-            patch("requests.get") as mock_get,
+            patch("httpx.get") as mock_get,
             patch("tempfile.mkstemp") as mock_mkstemp,
             patch("os.chmod"),
             patch("os.close"),
@@ -127,7 +127,7 @@ class BashScriptInstallerTests:
             installer = BashScriptInstaller(script_url="https://example.com/script.sh")
             installer.run()
 
-            # Verify: requests.get was called
+            # Verify: httpx.get was called
             expect(mock_get.called).to_be_true()
             expect(mock_get.call_args[0][0]).to_equal("https://example.com/script.sh")
 
@@ -181,7 +181,7 @@ class BashScriptInstallerTests:
         Then: RuntimeError is raised
         """
         with (
-            patch("requests.get", side_effect=Exception("Network error")),
+            patch("httpx.get", side_effect=Exception("Network error")),
             patch("tempfile.mkstemp") as mock_mkstemp,
             patch("os.close"),
             patch("os.path.exists", return_value=False),

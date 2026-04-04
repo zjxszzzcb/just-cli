@@ -19,7 +19,7 @@ ENV PATH="$PATH:/root/.just/bin:/root/.local/bin"
 
 # Copy and install project with dependencies
 COPY . .
-RUN pip install --no-cache-dir requests && pip install --no-cache-dir .
+RUN pip install --no-cache-dir .
 
 # Default command
 CMD ["python", "tests/container_installers/run_installer_tests.py"]
