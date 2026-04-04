@@ -202,6 +202,14 @@ class DevToolProbe:
         return probe_tool("wget")
 
     @property
+    def npm(self) -> ToolStatus:
+        return probe_tool("npm")
+
+    @property
+    def bun(self) -> ToolStatus:
+        return probe_tool("bun")
+
+    @property
     def tar(self) -> ToolStatus:
         return probe_tool("tar")
 
