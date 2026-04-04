@@ -15,7 +15,7 @@ def install_claude_code():
             just.execute_commands("winget install Anthropic.ClaudeCode")
         else:
             just.download_with_resume('https://claude.ai/install.ps1', output_file='install-claude-code.ps1')
-            just.execute_commands("iex .\install-claude-code.ps1")
+            just.execute_commands(r"iex .\install-claude-code.ps1")
             just.execute_commands("just rm install-claude-code.ps1")
     else:
         raise NotImplementedError(f"claude-code installer is not supported on {just.system.platform}.")
