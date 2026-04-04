@@ -1,3 +1,5 @@
+"""Base class for installer sources."""
+
 from abc import ABC, abstractmethod
 from typing import Callable, Optional
 
@@ -5,7 +7,6 @@ from just.core.installer.package_info import PackageInfo
 
 
 class JustInstallerSource(ABC):
-
     def __init__(self, url: str):
         self.url = url
 
