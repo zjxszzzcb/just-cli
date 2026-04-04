@@ -1,0 +1,25 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1
+
+# Build-time proxy support (only for apt and pip during build)
+ARG http_proxy
+ARG https_proxy
+
+# Install system dependencies for installers
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    gnupg \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add ~/.just/bin and ~/.local/bin to PATH for installed tools
+ENV PATH="$PATH:/root/.just/bin:/root/.local/bin"
+
+# Copy and install project with dependencies
+COPY . .
+RUN pip install --no-cache-dir requests && pip install --no-cache-dir .
+
+# Default command
+CMD ["python", "tests/container_installers/run_installer_tests.py"]
