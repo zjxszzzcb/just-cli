@@ -25,7 +25,7 @@ def install_package(package_name: str, additional_args: Optional[List[str]] = No
         distro_version=distro_version,
     )
 
-    installer_sources = config.JUST_INSTALLER_SOURCES
+    installer_sources = config.JUST_INSTALLER_SOURCES.copy()
     installer_sources.insert(0, str(get_basic_installer_dir()))
 
     for source in installer_sources:

@@ -3,18 +3,12 @@ FROM python:3.11-slim
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 
-# Proxy support (optional, pass via --build-arg)
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
-ENV http_proxy=${HTTP_PROXY}
-ENV https_proxy=${HTTPS_PROXY}
-
 # Install dependencies from requirements.txt
-COPY tests/requirements.txt /tmp/requirements.txt
+COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Copy project files
-COPY . .
+# Copy project files (assumes build context is project root)
+COPY . ./
 
 # Install the package
 RUN pip install .
