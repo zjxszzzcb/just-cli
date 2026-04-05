@@ -8,7 +8,7 @@ from just.core.config import (
     update_env_config,
     get_cache_dir,
 )
-from just.core.installer import installer, ArchiveInstaller, BinaryInstaller
+from just.core.installer import installer, ArchiveInstaller, BashScriptInstaller, BinaryInstaller
 from just.utils import (
     SystemProbe,
     create_typer_app,
@@ -38,6 +38,7 @@ __all__ = [
     "just_cli",
     "installer",
     "ArchiveInstaller",
+    "BashScriptInstaller",
     "BinaryInstaller",
     "load_env_config",
     "update_env_config",
