@@ -24,6 +24,9 @@ class RemoteScriptInstaller(ABC):
         self,
         commands: Optional[Union[str, List[str]]] = None,
         script_url: Optional[str] = None,
+        name: Optional[str] = None,
+        cache_enabled: bool = True,
+        keep_cache: bool = False,
     ):
         """
         Initialize RemoteScriptInstaller.
@@ -31,6 +34,9 @@ class RemoteScriptInstaller(ABC):
         Args:
             commands: Shell command(s) to execute directly
             script_url: URL to download and execute script from
+            name: Script name for caching (e.g., "opencode" → "install_opencode.sh")
+            cache_enabled: Use cache directory instead of temp file
+            keep_cache: Keep script after execution (for debugging)
 
         Raises:
             ValueError: If both or neither of commands and script_url are provided
@@ -43,7 +49,33 @@ class RemoteScriptInstaller(ABC):
 
         self.commands = commands
         self.script_url = script_url
+        self.name = name
+        self.cache_enabled = cache_enabled
+        self.keep_cache = keep_cache
         self._temp_file: Optional[str] = None
+
+    def _get_cache_dir(self):
+        """Get cache directory for installer scripts."""
+        from pathlib import Path
+
+        cache_dir = Path.home() / ".just" / "cache" / "installer" / "scripts"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        return cache_dir
+
+    def _get_script_filename(self) -> str:
+        """Generate filename for cached script."""
+        if self.name:
+            return f"install_{self.name}.sh"
+
+        # Use URL hash for unnamed scripts
+        import hashlib
+        try:
+            url_hash = hashlib.sha256(self.script_url.encode()).hexdigest()[:12]
+            return f"install_{url_hash}.sh"
+        except Exception:
+            # Fallback to timestamp
+            import time
+            return f"install_{int(time.time())}.sh"
 
     @classmethod
     @abstractmethod
@@ -79,25 +111,61 @@ class RemoteScriptInstaller(ABC):
             self._cleanup()
 
     def _download_script(self) -> None:
-        """Download script from URL to a temporary file."""
+        """Download script from URL to cache or temp file."""
         if self.script_url is None:
             return
 
         echo.info(f"Downloading {self.shell_type} script from {self.script_url}")
 
-        # Create temp file
-        temp_fd, self._temp_file = tempfile.mkstemp(suffix=f".{self.shell_type}")
-        os.close(temp_fd)
+        # Determine file location based on cache_enabled
+        if self.cache_enabled:
+            cache_dir = self._get_cache_dir()
+            filename = self._get_script_filename()
+            script_path = cache_dir / filename
 
-        try:
-            content = httpx.get(self.script_url).text
+            # Check if already cached
+            if script_path.exists():
+                echo.info(f"Using cached script: {script_path}")
+                self._temp_file = str(script_path)
+                return
 
-            with open(self._temp_file, "w") as f:
-                f.write(content)
+            # Download to cache
+            try:
+                from just.utils.download_utils import download_with_resume
 
-            echo.info(f"Script downloaded to {self._temp_file}")
-        except Exception as e:
-            raise RuntimeError(f"Failed to download script: {e}")
+                success = download_with_resume(
+                    url=self.script_url,
+                    output_file=str(script_path),
+                    verbose=False
+                )
+
+                if not success:
+                    raise RuntimeError(f"Failed to download script from {self.script_url}")
+
+                self._temp_file = str(script_path)
+                echo.info(f"Script cached to: {script_path}")
+            except Exception as e:
+                raise RuntimeError(f"Failed to download script: {e}")
+        else:
+            # Use temp file (backward compatible)
+            temp_fd, self._temp_file = tempfile.mkstemp(suffix=f".{self.shell_type}")
+            os.close(temp_fd)
+
+            try:
+                from just.utils.download_utils import download_with_resume
+
+                success = download_with_resume(
+                    url=self.script_url,
+                    output_file=self._temp_file,
+                    verbose=False
+                )
+
+                if not success:
+                    raise RuntimeError(f"Failed to download script from {self.script_url}")
+
+                echo.info(f"Script downloaded to temp file: {self._temp_file}")
+            except Exception as e:
+                raise RuntimeError(f"Failed to download script: {e}")
 
     def _execute_script(self) -> None:
         """Execute the downloaded script."""
@@ -160,13 +228,21 @@ class RemoteScriptInstaller(ABC):
         echo.success("Execution completed successfully")
 
     def _cleanup(self) -> None:
-        """Clean up temporary files."""
-        if self._temp_file is not None and os.path.exists(self._temp_file):
-            try:
-                os.remove(self._temp_file)
-                echo.debug(f"Cleaned up temp file: {self._temp_file}")
-            except Exception:
-                pass
+        """Clean up temporary files or retain based on keep_cache setting."""
+        if self._temp_file is None or not os.path.exists(self._temp_file):
+            return
+
+        # Skip cleanup if user wants to keep cache
+        if self.cache_enabled and self.keep_cache:
+            echo.info(f"Script retained at: {self._temp_file}")
+            return
+
+        # Always cleanup temp files or cache when keep_cache=False
+        try:
+            os.remove(self._temp_file)
+            echo.debug(f"Cleaned up: {self._temp_file}")
+        except Exception as e:
+            echo.warning(f"Failed to cleanup {self._temp_file}: {e}")
 
 
 class BashScriptInstaller(RemoteScriptInstaller):
