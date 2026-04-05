@@ -15,8 +15,7 @@ def get_config_dir() -> Path:
 
 def get_cache_dir() -> Path:
     """Get JUST cache directory path"""
-    home = Path.home()
-    return home / ".cache" / "just"
+    return get_config_dir() / "cache"
 
 
 def ensure_config_dir_exists() -> Path:
@@ -92,3 +91,27 @@ def is_initialized() -> bool:
     """Check if JUST is initialized"""
     config_file = _get_system_info_file()
     return config_file.exists()
+
+
+def get_releases_dir() -> Path:
+    """Get JUST releases directory path"""
+    return get_config_dir() / "releases"
+
+
+def get_bin_dir() -> Path:
+    """Get JUST bin directory path"""
+    return get_config_dir() / "bin"
+
+
+def ensure_bin_dir_exists() -> Path:
+    """Ensure bin directory exists"""
+    bin_dir = get_bin_dir()
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    return bin_dir
+
+
+def ensure_releases_dir_exists() -> Path:
+    """Ensure releases directory exists"""
+    releases_dir = get_releases_dir()
+    releases_dir.mkdir(parents=True, exist_ok=True)
+    return releases_dir

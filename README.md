@@ -150,7 +150,7 @@ To help you make decisions, `just` provides system probing tools:
 
 We also provide two specialized helpers for common scenarios:
 *   **`just.BinaryInstaller`**: Best for single-file binaries (handles download, chmod, path).
-*   **`just.SimpleReleaseInstaller`**: Best for archives (handles download, extraction, linking).
+*   **`just.ArchiveInstaller`**: Best for archives (handles download, extraction, linking).
 
 #### Example: Installing Cloudflared
 

@@ -12,11 +12,13 @@ wheels/
 # IDE-specific files
 .vscode
 .idea
-.claude
 .qoder
+.sisyphus
 
 # Environment configuration
 .env
 workspace/
 extensions/
 CLAUDE.md
+
+.DS_Store

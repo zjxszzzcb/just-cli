@@ -1,23 +1,22 @@
-FROM python:3.11-slim
+FROM python:3.11
 
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1
-
-# Proxy support (optional, pass via --build-arg)
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
-ENV http_proxy=${HTTP_PROXY}
-ENV https_proxy=${HTTPS_PROXY}
 
 # Install dependencies from requirements.txt
 COPY tests/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Copy project files
+# Copy project files (assumes build context is project root)
 COPY . .
 
 # Install the package
 RUN pip install .
 
+RUN bash scripts/system/linux/proxy/proxy.sh install
+
+ENV HTTP_PROXY_URL=http://host.docker.internal:7890
+ENV HTTPS_PROXY_URL=http://host.docker.internal:7890
+
 # Run tests
-CMD ["python", "tests/run_tests.py", "--worker"]
+CMD ["/bin/bash"]

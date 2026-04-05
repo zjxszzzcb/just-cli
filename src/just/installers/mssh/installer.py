@@ -2,7 +2,7 @@ import just
 
 
 @just.installer
-def install_nvm(
+def install_mssh(
     version: just.Annotated[str, just.Option(
         '-v', '--version',
         help="The version of nvm to install."

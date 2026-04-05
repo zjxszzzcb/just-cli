@@ -1,6 +1,6 @@
 [project]
 name = "just-cli"
-version = "0.2.1"
+version = "0.3.0"
 description = "Your all-in-one CLI Toolkit"
 readme = "README.md"
 authors = [
@@ -24,6 +24,11 @@ just = "just.cli:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[project.optional-dependencies]
+dev = [
+    "loguru",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/just"]

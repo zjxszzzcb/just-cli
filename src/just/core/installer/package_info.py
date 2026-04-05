@@ -1,3 +1,5 @@
+"""Package information data class."""
+
 from dataclasses import dataclass
 
 from just.core.system_probe import Arch, Platform
@@ -7,6 +9,6 @@ from just.core.system_probe import Arch, Platform
 class PackageInfo:
     name: str
     platform: Platform
-    arch:  Arch
+    arch: Arch
     distro: str
     distro_version: str
