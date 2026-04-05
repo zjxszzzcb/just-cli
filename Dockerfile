@@ -1,9 +1,7 @@
-FROM python:3.11-slim
+FROM python:3.11
 
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1
-
-RUN apt update && apt install curl net-tools -y
 
 # Install dependencies from requirements.txt
 COPY tests/requirements.txt /tmp/requirements.txt
@@ -15,7 +13,10 @@ COPY . .
 # Install the package
 RUN pip install .
 
-RUN just --help
+RUN bash scripts/system/linux/proxy/proxy.sh install
+
+ENV HTTP_PROXY_URL=http://host.docker.internal:7890
+ENV HTTPS_PROXY_URL=http://host.docker.internal:7890
 
 # Run tests
 CMD ["/bin/bash"]

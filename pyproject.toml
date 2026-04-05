@@ -25,5 +25,10 @@ just = "just.cli:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[project.optional-dependencies]
+dev = [
+    "loguru",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/just"]

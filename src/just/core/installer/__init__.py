@@ -7,7 +7,7 @@ from .installers import (
     BashScriptInstaller,
     BinaryInstaller,
     PowerShellInstaller,
-    ScriptInstaller,
+    RemoteScriptInstaller,
 )
 
 
@@ -19,5 +19,5 @@ __all__ = [
     "BashScriptInstaller",
     "BinaryInstaller",
     "PowerShellInstaller",
-    "ScriptInstaller",
+    "RemoteScriptInstaller",
 ]

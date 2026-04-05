@@ -51,7 +51,7 @@ def install_package(package_name: str, additional_args: Optional[List[str]] = No
 
         # Check if command exists before executing (follows probe_tool pattern)
         if shutil.which(cmd_name):
-            exit_code, _ = execute_command(check_cmd, capture_output=True)
+            exit_code, output = execute_command(check_cmd, capture_output=True)
             if exit_code == 0:
                 echo.success(f"{package_name} is already installed.")
                 return
@@ -59,6 +59,19 @@ def install_package(package_name: str, additional_args: Optional[List[str]] = No
 
     app.command()(installer)
     app(additional_args)
+
+    # Verify installation after completion
+    if check_cmd:
+        from just.utils import execute_command, echo
+        exit_code, output = execute_command(check_cmd, capture_output=True)
+        if exit_code == 0:
+            echo.info(f"✓ Verification: {check_cmd}")
+            if output and output.strip():
+                # Show first line of output
+                first_line = output.strip().split('\n')[0]
+                echo.info(f"  {first_line}")
+        else:
+            echo.warning(f"⚠ Installation completed, but verification command failed: {check_cmd}")
 
 
 def list_available_installers() -> List[dict]:

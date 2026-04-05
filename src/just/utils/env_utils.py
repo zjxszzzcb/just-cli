@@ -162,3 +162,29 @@ class EnvConfig(ABC):
                 _ = super().__getattribute__(item)
                 return item
         return EnvConfigKeys()
+
+
+def set_proxy_env(proxy_url: str) -> dict:
+    """
+    Set proxy environment variables for HTTP/HTTPS requests.
+
+    httpx automatically reads HTTP_PROXY and HTTPS_PROXY environment variables,
+    so all downloads will use the proxy after setting these.
+
+    Args:
+        proxy_url: Proxy URL (e.g., "http://127.0.0.1:7890")
+
+    Returns:
+        Dictionary of environment variables that were set
+    """
+    proxy_vars = {
+        'HTTP_PROXY': proxy_url,
+        'HTTPS_PROXY': proxy_url,
+        'http_proxy': proxy_url,
+        'https_proxy': proxy_url,
+    }
+
+    for key, value in proxy_vars.items():
+        os.environ[key] = value
+
+    return proxy_vars

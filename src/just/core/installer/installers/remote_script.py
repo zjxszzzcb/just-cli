@@ -11,9 +11,9 @@ import httpx
 from just.utils import echo
 
 
-class ScriptInstaller(ABC):
+class RemoteScriptInstaller(ABC):
     """
-    Abstract base class for script-based installers.
+    Abstract base class for remote script-based installers.
 
     Provides common functionality for executing commands in different shells.
     """
@@ -26,7 +26,7 @@ class ScriptInstaller(ABC):
         script_url: Optional[str] = None,
     ):
         """
-        Initialize ScriptInstaller.
+        Initialize RemoteScriptInstaller.
 
         Args:
             commands: Shell command(s) to execute directly
@@ -169,7 +169,7 @@ class ScriptInstaller(ABC):
                 pass
 
 
-class BashScriptInstaller(ScriptInstaller):
+class BashScriptInstaller(RemoteScriptInstaller):
     """
     Installer for bash scripts.
 
@@ -192,7 +192,7 @@ class BashScriptInstaller(ScriptInstaller):
         return cls(script_url=url)
 
 
-class PowerShellInstaller(ScriptInstaller):
+class PowerShellInstaller(RemoteScriptInstaller):
     """
     Installer for PowerShell scripts.
 

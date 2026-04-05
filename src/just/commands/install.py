@@ -19,6 +19,10 @@ def install(
         "--list", "-l",
         help="List all available tools that can be installed"
     )] = False,
+    proxy: Annotated[Optional[str], typer.Option(
+        "--proxy",
+        help="Proxy URL for downloads (e.g., http://127.0.0.1:7890)"
+    )] = None,
     help_flag: Annotated[bool, typer.Option(
         "--help", "-h",
         help="Show this help message and exit"
@@ -28,7 +32,7 @@ def install(
     if list_flag:
         _show_available_installers()
         return
-    
+
     if not args:
         show_help(just_cli, "install")
         return
@@ -36,6 +40,12 @@ def install(
     package_name = args.pop(0)
     if help_flag:
         args.append("--help")
+
+    # Set proxy if provided
+    if proxy:
+        from just.utils.env_utils import set_proxy_env
+        set_proxy_env(proxy)
+        echo.info(f"Proxy set: {proxy}")
 
     try:
         install_package(package_name, args)

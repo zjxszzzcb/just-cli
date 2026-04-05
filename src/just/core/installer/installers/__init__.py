@@ -1,17 +1,20 @@
-# Script Installers
-from .script_installer import BashScriptInstaller, PowerShellInstaller, ScriptInstaller
+# Remote Script Installers
+from .remote_script import (
+    BashScriptInstaller,
+    PowerShellInstaller,
+    RemoteScriptInstaller,
+)
 
 # Binary & Archive Installers
-from .archive import ArchiveInstaller
-from .binary import BinaryInstaller
+from .binary_release import ArchiveInstaller, BinaryInstaller
 
 
 __all__ = [
-    # Script Installers
-    "ScriptInstaller",
+    # Remote Script Installers
+    "RemoteScriptInstaller",
     "BashScriptInstaller",
     "PowerShellInstaller",
     # Binary & Archive Installers
-    "ArchiveInstaller",
     "BinaryInstaller",
+    "ArchiveInstaller",
 ]

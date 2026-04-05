@@ -1,55 +1,138 @@
 #!/usr/bin/env python3
 """Installer E2E Tests"""
 
+import argparse
+import subprocess
 import sys
-from pathlib import Path
+import uuid
 
-tests_dir = Path(__file__).parent
-sys.path.insert(0, str(tests_dir))
+from loguru import logger
 
-from docker_container import DockerContainer
-from container_installers.test_installers import INSTALLER_CONFIGS
+from just.core.installer.install_package import list_available_installers
+from just.utils.shell_utils import execute_command
+from just.utils.docker_utils import DockerContainer
+
+
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Just Installer E2E Tests")
+    parser.add_argument(
+        "installers",
+        nargs="*",
+        help="Specific installer names to test. If not provided, test all installers"
+    )
+    parser.add_argument(
+        "--proxy",
+        type=str,
+        help="Proxy URL for downloads (e.g., http://127.0.0.1:7890)"
+    )
+    parser.add_argument(
+        "--image",
+        type=str,
+        default=None,
+        help="Docker image to use for testing. If not provided, tests run on local machine"
+    )
+    return parser.parse_args()
+
+
+def test_installer(name: str, proxy: str = None, container: DockerContainer = None) -> bool:
+    """Test a single installer on local machine or in container.
+
+    Args:
+        name: Installer name
+        proxy: Optional proxy URL
+        container: Optional DockerContainer instance for container testing
+
+    Returns:
+        True if installation succeeded, False otherwise
+    """
+    logger.info(f"Testing `{name}` installer ...")
+
+    cmd = f"just install {name}"
+    if proxy:
+        cmd += f" --proxy {proxy}"
+
+    logger.info('-'*60)
+    # Execute command based on context
+    if container:
+        exit_code, _ = container.exec_command(cmd)
+    else:
+        exit_code, _ = execute_command(cmd, capture_output=True)
+    logger.info('-'*60)
+
+    if exit_code == 0:
+        logger.success("Installed successfully")
+        return True
+    else:
+        logger.error("Installation failed")
+        return False
 
 
 def main():
+    args = parse_args()
     passed = []
     failed = []
 
-    print("🐳 Installer E2E Tests")
-    print("=" * 60)
+    # Get available installers
+    installers = list_available_installers()
 
-    with DockerContainer() as container:
-        print(f"✅ Container started: {container.container_name}\n")
+    # Determine which installers to test
+    if args.installers:
+        # User specified specific installers
+        installer_names = args.installers
+    else:
+        # Test all installers
+        installer_names = [inst['name'] for inst in installers]
 
-        for name, config in INSTALLER_CONFIGS.items():
-            print(f"📦 Testing {name}...")
+    logger.info("🐳 Just Installer E2E Tests")
+    logger.info("=" * 60)
 
-            # Install
-            exit_code, output = container.exec_command(f"just install {name}")
-            if exit_code != 0:
-                print(f"   ❌ {output[:100]}")
-                failed.append(name)
-                print()
-                continue
+    if args.image:
+        # Container mode
+        logger.info(f"Testing in container with image: {args.image}")
 
-            # Verify
-            verify_cmd = config["verify_command"]
-            exit_code, output = container.exec_command(verify_cmd)
-            if exit_code == 0:
-                version = output.strip().split('\n')[0]
-                print(f"   ✅ {version}")
+        # Prepare environment variables
+        envs = {
+            'PATH': '/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.just/bin'
+        }
+        if args.proxy:
+            envs.update({
+                'HTTP_PROXY': args.proxy,
+                'HTTPS_PROXY': args.proxy,
+                'http_proxy': args.proxy,
+                'https_proxy': args.proxy,
+            })
+
+        container_name = f"just-e2e-{uuid.uuid4().hex[:8]}"
+        with DockerContainer(image=args.image, name=container_name, envs=envs) as container:
+            logger.success(f"Container started: {container_name}\n")
+
+            for name in installer_names:
+                if test_installer(name, args.proxy, container):
+                    passed.append(name)
+                else:
+                    failed.append(name)
+
+            # Interactive container entry
+            logger.info("=" * 60)
+            user_input = input("Enter container for debugging? [y/N]: ")
+            if user_input.lower() == 'y':
+                subprocess.run(["docker", "exec", "-it", container_name, "bash"])
+    else:
+        # Local machine mode
+        logger.info(f"Testing on local machine")
+
+        for name in installer_names:
+            if test_installer(name, args.proxy):
                 passed.append(name)
             else:
-                print(f"   ❌ {output[:100]}")
                 failed.append(name)
 
-            print()
-
-    print("=" * 60)
-    print(f"Results: {len(passed)} passed, {len(failed)} failed")
+    logger.info("=" * 60)
+    logger.info(f"Results: {len(passed)} passed, {len(failed)} failed")
 
     if failed:
-        print(f"\n❌ Failed: {', '.join(failed)}")
+        logger.error(f"Failed: {', '.join(failed)}")
 
     return 0 if not failed else 1
 
