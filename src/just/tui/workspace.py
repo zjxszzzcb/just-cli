@@ -1,12 +1,106 @@
 """Minimal workspace editor with file tree and editor"""
 
 from pathlib import Path
+from typing import Iterable
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import DirectoryTree, TextArea, Input, Button, Label
+from textual.widgets import DirectoryTree, TextArea, Input, Button, Label, Footer
+from rich.text import Text
+
+
+class IconDirectoryTree(DirectoryTree):
+    """DirectoryTree with custom file type icons."""
+
+    # File icon mapping by extension
+    FILE_ICONS: dict[str, str] = {
+        # Python
+        ".py": "🐍",
+        # JavaScript/TypeScript
+        ".js": "📜",
+        ".ts": "📜",
+        ".jsx": "📜",
+        ".tsx": "📜",
+        # Config files
+        ".json": "⚙️",
+        ".yaml": "⚙️",
+        ".yml": "⚙️",
+        ".toml": "⚙️",
+        ".xml": "⚙️",
+        ".ini": "⚙️",
+        ".conf": "⚙️",
+        ".cfg": "⚙️",
+        # Markdown
+        ".md": "📝",
+        ".markdown": "📝",
+        # Text
+        ".txt": "📄",
+        # Styles
+        ".css": "🎨",
+        ".scss": "🎨",
+        ".sass": "🎨",
+        ".less": "🎨",
+        # HTML
+        ".html": "🌐",
+        ".htm": "🌐",
+        # Shell
+        ".sh": "🖥️",
+        ".bash": "🖥️",
+        ".zsh": "🖥️",
+        ".fish": "🖥️",
+        # Rust
+        ".rs": "🦀",
+        # Go
+        ".go": "🐹",
+        # Java
+        ".java": "☕",
+        # C/C++
+        ".c": "🏗️",
+        ".cpp": "🏗️",
+        ".h": "🏗️",
+        ".hpp": "🏗️",
+        ".cc": "🏗️",
+        ".cxx": "🏗️",
+        # Other common files
+        ".lock": "🔒",
+        ".gitignore": "🙈",
+        ".env": "🔐",
+        "dockerfile": "🐳",
+        "dockerignore": "🐳",
+        "makefile": "🛠️",
+        # Fallback
+        "": "📄",
+    }
+
+    def render_label(
+        self, node, base_style: str, style: str
+    ) -> Text:
+        """Render label with custom icon based on file extension."""
+        if node.data is None:
+            return Text("")
+
+        # node.data is DirEntry, which has a path attribute
+        entry = node.data
+        path = entry.path
+
+        if path.is_dir():
+            # Folder icon
+            return Text(f"📁 {path.name}")
+
+        # Get file extension
+        ext = path.suffix.lower()
+        name_lower = path.name.lower()
+
+        # Check for special files by name
+        if name_lower in self.FILE_ICONS:
+            icon = self.FILE_ICONS[name_lower]
+        else:
+            # Check by extension
+            icon = self.FILE_ICONS.get(ext, self.FILE_ICONS[""])
+
+        return Text(f"{icon} {path.name}")
 
 
 class InputDialog(ModalScreen[str]):
@@ -160,8 +254,8 @@ class WorkspaceApp(App):
     BINDINGS = [
         Binding("ctrl+s", "save", "Save"),
         Binding("ctrl+n", "new", "New"),
-        Binding("d", "delete", "Delete"),
-        Binding("q", "quit", "Quit"),
+        Binding("ctrl+d", "delete", "Delete"),
+        Binding("escape", "quit", "ESC"),
     ]
 
     def __init__(self, path: str = "."):
@@ -172,8 +266,9 @@ class WorkspaceApp(App):
     def compose(self) -> ComposeResult:
         with Horizontal():
             with Vertical(id="sidebar"):
-                yield DirectoryTree(self.workspace_path)
+                yield IconDirectoryTree(self.workspace_path)
             yield CodeEditor(Path("/dev/null"), id="editor")
+        yield Footer()
 
     def on_mount(self) -> None:
         self.title = str(self.workspace_path)
@@ -201,13 +296,11 @@ class WorkspaceApp(App):
     def _create_note(self, name: str) -> None:
         if not name:
             return
-        if not name.endswith(".md"):
-            name += ".md"
         file_path = self.workspace_path / name
         if file_path.exists():
             self.notify("File already exists", severity="error")
             return
-        file_path.write_text(f"# {name[:-3]}\n\n", encoding="utf-8")
+        file_path.write_text("", encoding="utf-8")
         self._refresh_tree()
         self._open_file(file_path)
 
@@ -233,7 +326,7 @@ class WorkspaceApp(App):
             self.notify("Deleted")
 
     def _refresh_tree(self) -> None:
-        tree = self.query_one(DirectoryTree)
+        tree = self.query_one(IconDirectoryTree)
         tree.reload()
 
     def _open_file(self, file_path: Path) -> None:
