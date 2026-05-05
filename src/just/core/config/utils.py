@@ -115,3 +115,15 @@ def ensure_releases_dir_exists() -> Path:
     releases_dir = get_releases_dir()
     releases_dir.mkdir(parents=True, exist_ok=True)
     return releases_dir
+
+
+def get_repo_dir() -> Path:
+    """Get repos directory path"""
+    return get_config_dir() / "repos"
+
+
+def ensure_repo_dir_exists() -> Path:
+    """Ensure repos directory exists"""
+    repo_dir = get_repo_dir()
+    repo_dir.mkdir(parents=True, exist_ok=True)
+    return repo_dir
