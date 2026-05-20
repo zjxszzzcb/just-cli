@@ -22,3 +22,6 @@ extensions/
 CLAUDE.md
 
 .DS_Store
+
+.claude/worktrees
+.claude/settings.json
