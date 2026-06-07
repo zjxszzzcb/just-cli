@@ -86,7 +86,7 @@ A lightweight TUI text editor built right in.
 just edit README.md
 ```
 
-![Editor Screenshot](docs/images/editor_demo.png)
+![Editor Screenshot](docs/images/editor_demo_new.png)
 
 ### 📖 View
 
@@ -98,7 +98,7 @@ just view data.json          # JSON
 just view config.xml         # XML
 ```
 
-![Viewer Screenshot](docs/images/viewer_demo.png)
+![Viewer Screenshot](docs/images/viewer_demo_new.png)
 
 ### 🌐 Tunnel
 
