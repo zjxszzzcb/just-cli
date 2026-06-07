@@ -8,9 +8,9 @@
 [![Python](https://img.shields.io/pypi/pyversions/just-cli)](https://pypi.org/project/just-cli/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
 
-Stop Googling *"how to install X"* for the 47th time.
-Stop copy-pasting giant commands just to change one flag.
-**Just** makes everyday developer tasks *actually simple*.
+Tired of Googling *"how to install X"* for the 47th time, just to end up copy-pasting from official docs?
+Tired of copy-pasting giant commands every time, just to change one little parameter?
+Start using **Just** — an all-in-one CLI toolkit that makes everyday developer tasks *actually simple*.
 
 </div>
 
@@ -19,13 +19,13 @@ Stop copy-pasting giant commands just to change one flag.
 ## Installation
 
 ```bash
-pip install just-cli
+uv tool install just-cli
 ```
 
-Or with uv:
+Or with pip:
 
 ```bash
-uv tool install just-cli
+pip install just-cli
 ```
 
 ---
