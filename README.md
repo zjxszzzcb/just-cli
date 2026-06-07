@@ -69,9 +69,10 @@ just extract data.tar.gz -o ./output_dir
 
 ### 📥 Download
 
-Like `wget` or `curl`, but with smart naming, auto-resume, and a progress bar.
+Like `wget` or `curl`, but with auto-resume **by default** and a progress bar.
 
 ```bash
+# Filename is automatically extracted from URL, resume is on by default
 just download https://example.com/big-file.zip
 
 # Custom headers and output name
