@@ -134,6 +134,8 @@ Quick notes stored in `~/.just/notes`.
 just note
 ```
 
+![Note Screenshot](docs/images/note_demo.png)
+
 ### 🧩 Extension System
 
 Turn any long command into a reusable, type-safe CLI in 2 steps.
