@@ -1,5 +1,5 @@
 import typer
-from click import Context
+from typer import Context
 from typer.core import TyperGroup
 
 from typing import Optional
