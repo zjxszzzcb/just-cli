@@ -1,18 +1,22 @@
-<div align="center">
+<h1 align="center">🛠️ JUST CLI</h1>
 
-# 🛠️ JUST CLI
+<p align="center"><strong>The simple stuff should be simple.</strong></p>
 
-**The simple stuff should be simple.**
+<p align="center">
+<a href="https://pypi.org/project/just-cli/"> <img src="https://img.shields.io/pypi/v/just-cli?color=blue" alt="PyPI"></a>
+<a href="https://pypi.org/project/just-cli/"> <img src="https://img.shields.io/pypi/pyversions/just-cli" alt="Python"></a>
+<img src="https://img.shields.io/badge/license-MIT-purple.svg" alt="License: MIT">
+</p>
 
-[![PyPI](https://img.shields.io/pypi/v/just-cli?color=blue)](https://pypi.org/project/just-cli/)
-[![Python](https://img.shields.io/pypi/pyversions/just-cli)](https://pypi.org/project/just-cli/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
-
-Tired of Googling *"how to install X"* for the 47th time, just to end up copy-pasting from official docs?
+<p align="center">
+Tired of Googling "how to install X" for the 47th time, just to end up copy-pasting from official docs?
+</p>
+<p align="center">
 Tired of copy-pasting giant commands every time, just to change one little parameter?
-Start using **Just** — an all-in-one CLI toolkit that makes everyday developer tasks *actually simple*.
-
-</div>
+</p>
+<p align="center">
+Start using <b>Just</b> — an all-in-one CLI toolkit that makes everyday developer tasks <i>actually simple</i>.
+</p>
 
 ---
 
