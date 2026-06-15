@@ -398,7 +398,7 @@ def generate_command_replacements(arguments: List[Argument], options: dict) -> s
 
 
 def assemble_typer_script_content(
-    custom_command: str,
+    custom_commands: List[str],
     parent_cmd: str,
     sub_cmd: str,
     signature: str,
@@ -411,7 +411,10 @@ def assemble_typer_script_content(
     Assemble the complete Typer script content.
 
     Args:
-        custom_command: The original command template
+        custom_commands: List of original command templates. A single command
+            is executed directly; multiple commands run sequentially in order,
+            stopping on the first non-zero exit (equivalent to `&&`, but
+            handled in Python for cross-platform safety).
         parent_cmd: Parent command name
         sub_cmd: Sub command name
         signature: Function signature
@@ -439,6 +442,54 @@ def assemble_typer_script_content(
                     line = '    ' + line
                 lines.append(line)
         replacements_block = "\n".join(lines) + "\n"
+
+    # Multiple commands: build a list and run them sequentially in Python.
+    # Only the first command receives placeholder/varargs/option substitution;
+    # subsequent commands run verbatim.
+    is_multi = len(custom_commands) > 1
+
+    if is_multi and not has_varargs:
+        commands_list_src = ",\n        ".join(
+            repr(c.strip()) for c in custom_commands
+        )
+        script_content = \
+f"""import subprocess
+import sys
+from typing import List
+
+from typing_extensions import Annotated
+import typer
+
+{parent_imports}
+
+
+{sub_cmd}_cli = create_typer_app()
+# Add the CLI to the parent CLI
+{parent_cmd}_cli.add_typer({sub_cmd}_cli)
+
+
+@{sub_cmd}_cli.command(name="{sub_cmd}")
+def main(
+{signature.rstrip()}
+):
+    commands = [
+        {commands_list_src}
+    ]
+    # First command: apply placeholder/option substitution
+    command = commands[0]
+{replacements_block}
+    commands[0] = command
+    # Run commands sequentially; stop on first failure (&& semantics, cross-platform)
+    for cmd in commands:
+        # Use shell=True for cross-platform compatibility (Windows shell built-ins like echo)
+        result = subprocess.run(cmd, shell=True)
+        if result.returncode != 0:
+            sys.exit(result.returncode)
+"""
+        return script_content
+
+    # Single-command path (varargs or standard)
+    custom_command = custom_commands[0]
 
     # Generate different templates based on varargs mode
     if has_varargs:
@@ -514,7 +565,7 @@ def main(
 
 
 def generate_extension_script(
-    custom_command: str,
+    custom_commands: List[str],
     just_commands: List[str],
     overwrite: bool = False
 ):
@@ -522,7 +573,9 @@ def generate_extension_script(
     Generate a complete extension script.
 
     Args:
-        custom_command: The original command template
+        custom_commands: List of command templates. A single command is executed
+            directly; multiple commands run sequentially in order, stopping on
+            the first non-zero exit.
         just_commands: List of command parts
         overwrite: If True, overwrite existing script
 
@@ -530,6 +583,11 @@ def generate_extension_script(
         FileExistsError: If the script already exists and overwrite is False
         ValueError: If command structure is invalid
     """
+    # Backwards-compat: accept a single string from older callers
+    if isinstance(custom_commands, str):
+        custom_commands = [custom_commands]
+    if not custom_commands:
+        raise ValueError("No command specified")
     # Validate input
     validate_command_input(just_commands)
 
@@ -593,7 +651,7 @@ def generate_extension_script(
 
     # Assemble final content
     content = assemble_typer_script_content(
-        custom_command,
+        custom_commands,
         just_parent_command,
         just_sub_command,
         signature,
