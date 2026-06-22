@@ -1,54 +1,91 @@
-# 🛠️ JUST CLI
+<h1 align="center">🛠️ JUST CLI</h1>
 
-## The simple stuff should be simple.
+<p align="center"><strong>The simple stuff should be simple.</strong></p>
 
-Sick of Googling *"how to install X on XXX"* for the 47th time, only to end up copying and pasting similar commands from various official docs?
+<p align="center">
+<a href="https://pypi.org/project/just-cli/"> <img src="https://img.shields.io/pypi/v/just-cli?color=blue" alt="PyPI"></a>
+<a href="https://pypi.org/project/just-cli/"> <img src="https://img.shields.io/pypi/pyversions/just-cli" alt="Python"></a>
+<img src="https://img.shields.io/badge/license-MIT-purple.svg" alt="License: MIT">
+</p>
 
-Tired of copy-pasting giant commands and tapping arrow keys forever just to change one little thing?
+<p align="center">
+Tired of Googling "how to install X" for the 47th time, just to end up copy-pasting from official docs?
+</p>
+<p align="center">
+Tired of copy-pasting giant commands every time, just to change one little parameter?
+</p>
+<p align="center">
+Start using <b>Just</b> — an all-in-one CLI toolkit that makes everyday developer tasks <i>actually simple</i>.
+</p>
 
-Just want an all-in-one toolkit for everyday simple tasks, instead of endlessly searching and testing Deep Research results one by one?
-
-**Just** is built to end the hassle. It focuses purely on making the simple, everyday developer tasks *actually simple*.
-
+---
 
 ## Installation
 
-```shell
+```bash
+uv tool install just-cli
+```
+
+Or with pip:
+
+```bash
 pip install just-cli
 ```
 
-## 😋 The Good Stuff
+---
 
-### The Toolkit 🧰
+## Features
 
-A collection of essential tools that work exactly how you expect them to.
+### 📦 Archive & Extract
 
-#### 📥 Easy Download
-Just download files like `wget` or `curl`, but with smart naming, auto-resume, and a beautiful progress bar by default.
+Create and extract archives with automatic format detection.
 
 ```bash
-# Auto-resume is on by default. The filename is automatically extracted from the URL.
+# Create archives — format is determined by output extension
+just archive mydir -o backup.zip
+just archive mydir -o backup.tar.gz
+just archive mydir -o backup.7z
+just archive myfile.txt -o myfile.txt.gz    # single-file compression
+
+# Extract archives — magic bytes detection, works even with wrong extensions
+just extract backup.zip
+just extract data.tar.gz -o ./output_dir
+```
+
+<details>
+<summary><strong>Supported formats</strong></summary>
+
+| Format | Archive | Extract |
+|--------|:-------:|:-------:|
+| `.zip` | ✅ | ✅ |
+| `.tar` | ✅ | ✅ |
+| `.tar.gz` / `.tgz` | ✅ | ✅ |
+| `.tar.bz2` / `.tbz2` | ✅ | ✅ |
+| `.tar.xz` / `.txz` | ✅ | ✅ |
+| `.tar.zst` / `.tzst` | ✅ | ✅ |
+| `.gz` | ✅ | ✅ |
+| `.bz2` | ✅ | ✅ |
+| `.xz` | ✅ | ✅ |
+| `.zst` | ✅ | ✅ |
+| `.7z` | ✅ | ✅ |
+
+</details>
+
+### 📥 Download
+
+Like `wget` or `curl`, but with auto-resume **by default** and a progress bar.
+
+```bash
+# Filename is automatically extracted from URL, resume is on by default
 just download https://example.com/big-file.zip
 
-# Use -H for custom headers and -o to specify a custom output filename.
+# Custom headers and output name
 just download https://api.example.com/data -H "Authorization: Bearer token" -o data.json
 ```
 
-#### 📦 Universal Extract
-Just extract the archive. It intelligently detects the compression format (via magic bytes) and handles everything.
-*   **Supported**: ZIP, TAR, GZ, BZ2, XZ, ZSTD, 7Z.
-*   **Note**: RAR is **not** supported.
+### 📝 Edit
 
-```bash
-# Extracts to a folder named after the archive by default
-just extract archive.tar.gz
-
-# Specify a custom output directory
-just extract data.7z -o ./output_dir
-```
-
-#### 📝 Text Editor
-Just edit files with a simple TUI editor.
+A lightweight TUI text editor built right in.
 
 ```bash
 just edit README.md
@@ -56,137 +93,98 @@ just edit README.md
 
 ![Editor Screenshot](docs/images/editor_demo.png)
 
-#### 📖 Smart Viewer
-Just view files with intelligent rendering. Currently supports Markdown with syntax highlighting and TOC.
-*Based on the excellent [Textual Markdown example](https://github.com/Textualize/textual).*
+### 📖 View
+
+Smart file viewer with syntax highlighting, TOC, and structured rendering.
 
 ```bash
-just view README.md
+just view README.md          # Markdown
+just view data.json          # JSON
+just view config.xml         # XML
 ```
 
 ![Viewer Screenshot](docs/images/viewer_demo.png)
 
-#### 🌐 Cloudflare Tunnel
-Just expose your local server to the internet.
+### 🌐 Tunnel
+
+Expose your local server to the internet via Cloudflare Tunnel.
 
 ```bash
-# Powered by Cloudflare Tunnel (cloudflared)
 just tunnel http://localhost:8000
 ```
 
-#### 🐧 Common Linux File Operations
-Just some common file operations implemented in Python, for those tired of remembering command differences between Linux and Windows.
+### 🐧 File Operations
+
+Common file commands, cross-platform, no syntax surprises.
 
 ```bash
-just cat
-just ls 
-just cp
-just mv
-just rm
-just mkdir
+just cat file.txt
+just ls
+just cp src dst
+just mv old new
+just rm file
+just mkdir dir
 ```
 
-### The Extension System 🧩
+### 📒 Notes
 
-#### Create a CLI tool with Just Extension in just 2 steps
+Quick notes stored in `~/.just/notes`.
 
-The core idea is simple: **String Replacement**. You take a long, complex command, mark the parts you want to change, and `just` generates a CLI for it.
+```bash
+just note
+```
 
-Here is an example:
+![Note Screenshot](docs/images/note_demo.png)
 
-1.  **Register the complex command**:
-    Tell `just` what command you want to alias.
-    ```bash
-    just ext add docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' f523e75ca4ef
-    ```
+### 🧩 Extension System
 
-2.  **Design your command**:
-    Design a command structure that is easy for you to remember by marking dynamic parts using the syntax `[<name>:<type>=<default>#<help>]`.
-    ```text
-    # Replace the static container ID with a dynamic argument
-    Enter extension commands: just docker ip f523e75ca4ef[container_id:str#The Container ID]
-    ```
+Turn any long command into a reusable, type-safe CLI in 2 steps.
 
-**That's it!** Now you can use your new command:
+**1. Register the base command:**
+```bash
+just ext add docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' f523e75ca4ef
+```
+
+**2. Define your CLI by marking dynamic parts:**
+```text
+Enter extension commands: just docker ip f523e75ca4ef[container_id:str#The Container ID]
+```
+
+**Done.** Now use it:
 ```bash
 just docker ip <container_id>
 ```
 
-#### ✨ How it works
+Under the hood, `just` generates a native Python script using typer — with auto-completion, type validation, and help messages. All from simple **string replacement**.
 
-When you run the command above, `just` compiles a native Python script using **typer**.
+### 💿 Installer Framework
 
-1.  **Parsing**: The syntax `f523e75ca4ef[container_id:str#The Container ID]` tells `just` to:
-    *   Identify `f523e75ca4ef` as the **target string** to replace.
-    *   Create a variable `container_id` of type `str`.
-    *   Use "The Container ID" as the help message.
-
-2.  **Code Generation**: It generates a Python function with a type-safe signature:
-    ```python
-    def main(container_id: Annotated[str, typer.Argument(help="The Container ID")]):
-        # The original command template
-        command = "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' f523e75ca4ef"
-        
-        # String Replacement Logic
-        command = command.replace('f523e75ca4ef', str(container_id))
-        
-        # Execution
-        subprocess.run(shlex.split(command))
-    ```
-
-3.  **Result**: You get a fully functional CLI with auto-completion, type validation, and help messages—all powered by the simple act of string replacement.
-
-
-### The Installer 💿
-
-#### Automate the "Official Docs" with minimal code.
-
-`just` allows you to run any command from the official docs using `just.execute_commands`. It simply automates your manual steps.
-
-To help you make decisions, `just` provides system probing tools:
-*   `just.system.platform`: `linux`, `windows`, `darwin`
-*   `just.system.arch`: `x86_64`, `aarch64`
-*   `just.system.pms`: Detects `winget`, `brew`, `apt`, etc.
-
-We also provide two specialized helpers for common scenarios:
-*   **`just.BinaryInstaller`**: Best for single-file binaries (handles download, chmod, path).
-*   **`just.ArchiveInstaller`**: Best for archives (handles download, extraction, linking).
-
-#### Example: Installing Cloudflared
-
-Here is a complete example that mimics the official installation logic:
+Automate installation scripts with system probing and binary/archive helpers.
 
 ```python
 @just.installer(check="cloudflared --version")
-def install_cloudflare():
-    """Install Cloudflare Tunnel client."""
-    
-    # Use standard package managers if available
-    if just.system.pms.winget.is_available():
-        just.execute_commands("winget install --id Cloudflare.cloudflared")
-        
-    elif just.system.pms.brew.is_available():
+def install_cloudflared():
+    if just.system.pms.brew.is_available():
         just.execute_commands("brew install cloudflared")
-    
-    # Use BinaryInstaller
     elif just.system.platform == 'linux':
-        # This helper automates: curl -> chmod +x -> symlink to bin
         just.BinaryInstaller(
             url='https://github.com/cloudflare/cloudflared/releases/.../cloudflared-linux-amd64',
             alias='cloudflared'
         ).run()
-    
-    else:
-        raise NotImplementedError
 ```
 
+Built-in system info:
+- `just.system.platform` → `linux`, `windows`, `darwin`
+- `just.system.arch` → `x86_64`, `aarch64`
+- `just.system.pms` → detects `winget`, `brew`, `apt`, etc.
 
-## 🤝 Contributing
+---
 
-Found a bug? Want to add a new installer?
-Fork it, fix it, ship it. We love PRs.
-Just keep it cool, keep it simple, and don't break the "just works" vibe.
+## Contributing
 
-## 📄 License
+Found a bug? Want a new feature?
+Fork it, fix it, ship it. Keep it cool, keep it simple, don't break the *"just works"* vibe.
 
-MIT. Go wild.
+## License
+
+[MIT](LICENSE)
