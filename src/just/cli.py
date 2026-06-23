@@ -1,7 +1,11 @@
 import functools
 import importlib
+import importlib.metadata
 import os
+import sys
 import traceback
+
+import typer
 
 from pathlib import Path
 from typer.core import TyperGroup
@@ -97,6 +101,11 @@ def load_extensions_dynamically():
 
 
 def main():
+    # Handle --version early, before loading modules
+    if "-v" in sys.argv or "--version" in sys.argv:
+        typer.echo(f"just {importlib.metadata.version('just-cli')}")
+        return
+
     # Ensure extensions directory exists
     ensure_extensions_dir_exists()
 
@@ -122,6 +131,10 @@ def main():
 
     # Load extensions from ~/.just/extensions
     load_extensions_dynamically()
+
+    # Load repos from ~/.just/repos
+    from just.core.repo.loader import load_repos_dynamically
+    load_repos_dynamically()
 
     # Run the CLI application
     run_just_cli()
